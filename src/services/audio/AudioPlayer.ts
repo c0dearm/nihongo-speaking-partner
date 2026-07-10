@@ -2,6 +2,7 @@ export class AudioPlayer {
   private audioCtx: AudioContext | null = null;
   private nextPlayTime = 0;
   private currentRms = 0;
+  private activeSources: Set<AudioBufferSourceNode> = new Set();
 
   private getContext(): AudioContext {
     if (!this.audioCtx) {
@@ -60,17 +61,31 @@ export class AudioPlayer {
     source.buffer = buffer;
     source.connect(ctx.destination);
 
+    source.onended = () => {
+      this.activeSources.delete(source);
+    };
+
     const start = Math.max(ctx.currentTime, this.nextPlayTime);
     source.start(start);
+    this.activeSources.add(source);
     this.nextPlayTime = start + buffer.duration;
   }
 
   clearQueue(): void {
+    this.activeSources.forEach((source) => {
+      try {
+        source.stop();
+      } catch (e) {
+        // Source may have already stopped
+      }
+    });
+    this.activeSources.clear();
     this.nextPlayTime = 0;
     this.currentRms = 0;
   }
 
   close(): void {
+    this.clearQueue();
     if (this.audioCtx) {
       this.audioCtx.close();
       this.audioCtx = null;

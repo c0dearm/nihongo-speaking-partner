@@ -121,6 +121,10 @@ export class LiveAudioClient {
     this.ws.onerror = (e) => {
       console.error('Gemini Live API WebSocket error:', e);
     };
+
+    this.ws.onclose = () => {
+      this.isConnected = false;
+    };
   }
 
   disconnect(): void {
