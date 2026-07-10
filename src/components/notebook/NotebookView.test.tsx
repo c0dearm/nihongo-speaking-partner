@@ -1,6 +1,5 @@
-import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NotebookView } from './NotebookView';
 import { StorageRepository } from '../../services/storage/StorageRepository';
 import { SettingsProvider } from '../../context/SettingsContext';
