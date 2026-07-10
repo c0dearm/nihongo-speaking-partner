@@ -79,7 +79,7 @@ export const NotebookView: React.FC<NotebookViewProps> = ({ repository }) => {
 
         <select
           value={filterLevel}
-          onChange={(e) => setFilterLevel(e.target.value as any)}
+          onChange={(e) => setFilterLevel(e.target.value as JLPTLevel | 'ALL')}
           className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-sm text-slate-200"
         >
           <option value="ALL">All Levels</option>
@@ -92,7 +92,11 @@ export const NotebookView: React.FC<NotebookViewProps> = ({ repository }) => {
 
         <select
           value={filterCategory}
-          onChange={(e) => setFilterCategory(e.target.value as any)}
+          onChange={(e) =>
+            setFilterCategory(
+              e.target.value as 'ALL' | 'grammar' | 'vocabulary' | 'pronunciation'
+            )
+          }
           className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-sm text-slate-200"
         >
           <option value="ALL">All Categories</option>
