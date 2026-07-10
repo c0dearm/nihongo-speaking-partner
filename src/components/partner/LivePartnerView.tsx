@@ -26,6 +26,8 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
   const personaService = new PersonaService();
   const evalService = new EvaluationService();
   const clientRef = useRef<LiveAudioClient | null>(null);
+  const sessionStartTimeRef = useRef<number>(Date.now());
+  const currentSessionIdRef = useRef<string>('sess-' + Date.now());
 
   useEffect(() => {
     clientRef.current = new LiveAudioClient();
@@ -57,6 +59,8 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
 
     setTranscript([]);
     setReport(null);
+    sessionStartTimeRef.current = Date.now();
+    currentSessionIdRef.current = 'sess-' + Date.now();
 
     client.onTurnEvent((turn) => {
       setTranscript((prev) => [
@@ -79,10 +83,11 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
     setIsConnected(false);
 
     if (transcript.length > 0) {
+      const elapsed = Math.max(1, Math.round((Date.now() - sessionStartTimeRef.current) / 1000));
       await repository.saveSession({
-        id: 'sess-' + Date.now(),
-        timestamp: Date.now(),
-        durationSeconds: 300,
+        id: currentSessionIdRef.current,
+        timestamp: sessionStartTimeRef.current,
+        durationSeconds: elapsed,
         personaId: selectedPersona,
         jlptLevel: defaultLevel,
         transcript,
@@ -97,6 +102,17 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
       const rep = await evalService.generateSessionReport(transcript, defaultLevel, apiKey);
       setReport(rep);
       setShowReportModal(true);
+
+      const elapsed = Math.max(1, Math.round((Date.now() - sessionStartTimeRef.current) / 1000));
+      await repository.saveSession({
+        id: currentSessionIdRef.current,
+        timestamp: sessionStartTimeRef.current,
+        durationSeconds: elapsed,
+        personaId: selectedPersona,
+        jlptLevel: defaultLevel,
+        transcript,
+        feedbackReport: rep,
+      });
     } catch (err) {
       console.error(err);
       alert('Failed to generate session feedback report.');
