@@ -69,4 +69,28 @@ describe('SettingsView', () => {
     expect(clickSpy).toHaveBeenCalled();
     clickSpy.mockRestore();
   });
+
+  it('imports valid JSON backup study data', async () => {
+    render(
+      <SettingsProvider>
+        <SettingsView repository={repo} />
+      </SettingsProvider>
+    );
+
+    const input = screen.getByLabelText(/Import Backup JSON/i);
+    const validJson = JSON.stringify({
+      version: 1,
+      exportedAt: Date.now(),
+      sessions: [],
+      drillsProgress: [],
+      notebookItems: [],
+      customDrills: [],
+      userStats: { dailyStreak: 5, lastPracticeDate: '2026-07-10', totalMinutesPracticed: 60, dailyGoalMinutes: 15 },
+    });
+    const file = new File([validJson], 'backup.json', { type: 'application/json' });
+
+    fireEvent.change(input, { target: { files: [file] } });
+
+    expect(await screen.findByText(/Study data imported successfully!/i)).toBeInTheDocument();
+  });
 });

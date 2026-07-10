@@ -17,27 +17,43 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ repository }) => {
   const levels: JLPTLevel[] = ['N5', 'N4', 'N3', 'N2', 'N1'];
 
   const handleExport = async () => {
-    const data = await repository.exportAllData();
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `nihongo-partner-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    setMessage('All study data exported successfully.');
+    try {
+      const data = await repository.exportAllData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `nihongo-partner-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setMessage('All study data exported successfully.');
+    } catch (err) {
+      console.error('Export error:', err);
+      setMessage('Failed to export study data.');
+    }
   };
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const text = await file.text();
+      const text =
+        typeof file.text === 'function'
+          ? await file.text()
+          : await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsText(file);
+            });
       const data = JSON.parse(text);
       await repository.importAllData(data);
       setMessage('Study data imported successfully!');
     } catch (err) {
+      console.error('Import error:', err);
       setMessage('Failed to import JSON backup. Invalid file format.');
+    } finally {
+      e.target.value = '';
     }
   };
 
