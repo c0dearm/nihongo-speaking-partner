@@ -100,7 +100,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ repository }) => {
           <div
             className="bg-indigo-600 h-full transition-all duration-300"
             style={{
-              width: `${Math.min(100, (stats.totalMinutesPracticed / stats.dailyGoalMinutes) * 100)}%`,
+              width: `${
+                stats.dailyGoalMinutes > 0
+                  ? Math.min(100, (stats.totalMinutesPracticed / stats.dailyGoalMinutes) * 100)
+                  : 0
+              }%`,
             }}
           />
         </div>
