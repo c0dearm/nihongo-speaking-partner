@@ -250,7 +250,8 @@ export const DrillStudioView: React.FC<DrillStudioViewProps> = ({ repository }) 
           onClose={() => setShowCreateModal(false)}
           onCreate={async (drill) => {
             await drillService.createCustomDrill(drill);
-            await loadDrills(selectedLevel);
+            setSelectedLevel(drill.jlptLevel);
+            await loadDrills(drill.jlptLevel);
           }}
         />
       )}

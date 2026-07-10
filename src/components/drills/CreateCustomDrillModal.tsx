@@ -70,7 +70,7 @@ export const CreateCustomDrillModal: React.FC<CreateCustomDrillModalProps> = ({
               <label className="block text-xs font-medium text-slate-400 mb-1">Category</label>
               <select
                 value={category}
-                onChange={(e) => setCategory(e.target.value as any)}
+                onChange={(e) => setCategory(e.target.value as DrillPrompt['category'])}
                 className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200"
               >
                 <option value="scenario">Scenario Response</option>
