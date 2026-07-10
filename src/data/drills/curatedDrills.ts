@@ -56,7 +56,7 @@ export const CURATED_DRILLS: DrillPrompt[] = [
     title: 'Expressing Experience (〜たことがある)',
     promptText: 'Listen and repeat: 日本で温泉に入ったことがありますか。',
     targetGrammar: '〜たことがある',
-    exampleAnswer: 'にほんでおんせんにいったことがありますか。',
+    exampleAnswer: 'にほんでおんせんにはいったことがありますか。',
   },
 
   // N3
@@ -143,6 +143,6 @@ export const CURATED_DRILLS: DrillPrompt[] = [
     title: 'Formal Dignity (〜にかかわる)',
     promptText: 'Listen and repeat: これは企業の信用にかかわる重大な問題だ。',
     targetGrammar: '〜にかかわる',
-    exampleAnswer: 'これはきぎょうのしんようのかかわるじゅうだいなもんだいだ。',
+    exampleAnswer: 'これはきぎょうのしんようにかかわるじゅうだいなもんだいだ。',
   },
 ];
