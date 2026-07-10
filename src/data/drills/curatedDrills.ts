@@ -1,0 +1,148 @@
+import { DrillPrompt } from '../../types';
+
+export const CURATED_DRILLS: DrillPrompt[] = [
+  // N5
+  {
+    id: 'n5-scenario-1',
+    jlptLevel: 'N5',
+    category: 'scenario',
+    title: 'Self-Introduction (自己紹介)',
+    promptText: 'Introduce yourself politely to a new classmate using 〜です and say where you are from.',
+    targetGrammar: '〜は〜です / 〜から来ました',
+    exampleAnswer: 'はじめまして。私はアレックスです。アメリカから来ました。よろしくおねがいします。',
+  },
+  {
+    id: 'n5-transformation-1',
+    jlptLevel: 'N5',
+    category: 'transformation',
+    title: 'Asking Permission (てもいいですか)',
+    promptText: 'Ask your teacher politely if you may take a picture of the blackboard.',
+    targetGrammar: '〜てもいいですか',
+    exampleAnswer: 'こくばんのしゃしんをとってもいいですか。',
+  },
+  {
+    id: 'n5-shadowing-1',
+    jlptLevel: 'N5',
+    category: 'shadowing',
+    title: 'Daily Routine (毎日)',
+    promptText: 'Listen and repeat clearly: 毎朝七時に起きて、コーヒーを飲みます。',
+    targetGrammar: '〜て (Connecting actions)',
+    exampleAnswer: 'まいあさしちじにおきて、コーヒーをのみます。',
+  },
+
+  // N4
+  {
+    id: 'n4-scenario-1',
+    jlptLevel: 'N4',
+    category: 'scenario',
+    title: 'Apologizing for Delay (遅れてしまいました)',
+    promptText: 'Explain to your coworker that your train stopped and you regret being 15 minutes late.',
+    targetGrammar: '〜てしまいました / 〜ので',
+    exampleAnswer: 'でんしゃがとまってしまったので、じゅうごふんおくれてしまいました。すみません。',
+  },
+  {
+    id: 'n4-transformation-1',
+    jlptLevel: 'N4',
+    category: 'transformation',
+    title: 'Giving Advice (〜ほうがいい)',
+    promptText: 'Advise a friend who has a cold that they should drink warm tea and rest early.',
+    targetGrammar: '〜たほうがいいです',
+    exampleAnswer: 'あたたかいおちゃをのんで、はやくなおしたほうがいいですよ。',
+  },
+  {
+    id: 'n4-shadowing-1',
+    jlptLevel: 'N4',
+    category: 'shadowing',
+    title: 'Expressing Experience (〜たことがある)',
+    promptText: 'Listen and repeat: 日本で温泉に入ったことがありますか。',
+    targetGrammar: '〜たことがある',
+    exampleAnswer: 'にほんでおんせんにいったことがありますか。',
+  },
+
+  // N3
+  {
+    id: 'n3-scenario-1',
+    jlptLevel: 'N3',
+    category: 'scenario',
+    title: 'Polite Request at Work (〜ていただけませんか)',
+    promptText: 'Ask a senior colleague politely if they could check your Japanese email draft.',
+    targetGrammar: '〜ていただけませんか',
+    exampleAnswer: 'お忙しいところ恐れ入りますが、このメールをチェックしていただけませんか。',
+  },
+  {
+    id: 'n3-transformation-1',
+    jlptLevel: 'N3',
+    category: 'transformation',
+    title: 'Expressing Cause/Reason (〜せいで)',
+    promptText: 'Explain that because of the heavy rain, the outdoor festival was canceled.',
+    targetGrammar: '〜せいで / 〜おかげで',
+    exampleAnswer: '大雨のせいで、イベントが中止になってしまいました。',
+  },
+  {
+    id: 'n3-shadowing-1',
+    jlptLevel: 'N3',
+    category: 'shadowing',
+    title: 'Comparison & Contrast (〜に対して)',
+    promptText: 'Listen and repeat: 兄が静かなのに対して、弟はとても活発です。',
+    targetGrammar: '〜に対して',
+    exampleAnswer: 'あにがしずかなのにたいして、おとうとはとてもかっぱつです。',
+  },
+
+  // N2
+  {
+    id: 'n2-scenario-1',
+    jlptLevel: 'N2',
+    category: 'scenario',
+    title: 'Formal Complaint (〜にほかならない)',
+    promptText: 'Persuade a team lead that customer satisfaction is nothing less than the top priority.',
+    targetGrammar: '〜にほかならない',
+    exampleAnswer: 'このプロジェクトの成功は、チーム全体の協力があったからにほかなりません。',
+  },
+  {
+    id: 'n2-transformation-1',
+    jlptLevel: 'N2',
+    category: 'transformation',
+    title: 'Simultaneous Action (〜つつ)',
+    promptText: 'Combine: Thinking about future career goals while working everyday.',
+    targetGrammar: '〜つつ / 〜つつある',
+    exampleAnswer: '自分の将来について考えつつ、毎日の仕事に取り組んでいます。',
+  },
+  {
+    id: 'n2-shadowing-1',
+    jlptLevel: 'N2',
+    category: 'shadowing',
+    title: 'Inevitability (〜ざるを得ない)',
+    promptText: 'Listen and repeat: 天候悪化のため、予定を変更せざるを得ない。',
+    targetGrammar: '〜ざるを得ない',
+    exampleAnswer: 'てんこうあっかのため、よていをへんこうせざるをえない。',
+  },
+
+  // N1
+  {
+    id: 'n1-scenario-1',
+    jlptLevel: 'N1',
+    category: 'scenario',
+    title: 'Firm Resolution (〜を余儀なくされる)',
+    promptText: 'Explain formally how unexpected supply delays forced the factory to suspend production.',
+    targetGrammar: '〜を余儀なくされる',
+    exampleAnswer: '部品供給の遅延により、工場は休止を余儀なくされた。',
+  },
+  {
+    id: 'n1-transformation-1',
+    jlptLevel: 'N1',
+    category: 'transformation',
+    title: 'Uncompromising Stance (〜を限りに)',
+    promptText: 'Declare that starting from today as the final boundary, bad habits will cease.',
+    targetGrammar: '〜を限りに',
+    exampleAnswer: '今日を限りに、不規則な生活習慣を改めようと決心した。',
+  },
+  {
+    id: 'n1-shadowing-1',
+    jlptLevel: 'N1',
+    category: 'shadowing',
+    title: 'Formal Dignity (〜にかかわる)',
+    promptText: 'Listen and repeat: これは企業の信用にかかわる重大な問題だ。',
+    targetGrammar: '〜にかかわる',
+    exampleAnswer: 'これはきぎょうのしんようのかかわるじゅうだいなもんだいだ。',
+  },
+];
