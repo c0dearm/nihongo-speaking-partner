@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { SettingsProvider, useSettings } from './context/SettingsContext';
 import { Header, ActiveTab } from './components/layout/Header';
 import { LivePartnerView } from './components/partner/LivePartnerView';
-import { DrillStudioView } from './components/drills/DrillStudioView';
 import { NotebookView } from './components/notebook/NotebookView';
 import { DashboardView } from './components/dashboard/DashboardView';
 import { SettingsView } from './components/settings/SettingsView';
@@ -43,7 +42,6 @@ const MainContent: React.FC = () => {
 
       <main className="flex-1">
         {activeTab === 'partner' && <LivePartnerView repository={repository} />}
-        {activeTab === 'drills' && <DrillStudioView repository={repository} />}
         {activeTab === 'notebook' && <NotebookView repository={repository} />}
         {activeTab === 'dashboard' && <DashboardView repository={repository} />}
         {activeTab === 'settings' && <SettingsView repository={repository} />}

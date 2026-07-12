@@ -110,5 +110,22 @@ describe('SettingsView', () => {
     expect(rigidRadio.checked).toBe(true);
     expect(localStorage.getItem('nihongo_adaptation_mode')).toBe('rigid');
   });
+
+  it('allows toggling Speaking Suggestions Mode between Automatic, On-Demand, and Off', () => {
+    render(
+      <SettingsProvider>
+        <SettingsView repository={repo} />
+      </SettingsProvider>
+    );
+
+    expect(screen.getByText(/Speaking Suggestions Mode/i)).toBeInTheDocument();
+    const autoRadio = screen.getByLabelText(/Automatic \(Recommended\)/i) as HTMLInputElement;
+    const manualRadio = screen.getByLabelText(/On-Demand \(Manual\)/i) as HTMLInputElement;
+
+    expect(autoRadio.checked).toBe(true);
+    fireEvent.click(manualRadio);
+    expect(manualRadio.checked).toBe(true);
+    expect(localStorage.getItem('nihongo_suggestions_mode')).toBe('manual');
+  });
 });
 

@@ -7,9 +7,9 @@ describe('App Integration', () => {
     render(<App />);
     expect(screen.getByText(/Nihongo Speaking Partner/i)).toBeInTheDocument();
 
-    const drillsTab = screen.getByRole('button', { name: /JLPT Drills/i });
-    fireEvent.click(drillsTab);
-    expect(await screen.findByText(/JLPT Speaking Drills/i)).toBeInTheDocument();
+    const notebookTab = screen.getByRole('button', { name: /Notebook/i });
+    fireEvent.click(notebookTab);
+    expect(await screen.findByText(/Mistake & Vocabulary Notebook/i)).toBeInTheDocument();
   });
 });
 

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
-import { JLPTLevel, AdaptationMode } from '../types';
+import { JLPTLevel, AdaptationMode, SuggestionsMode } from '../types';
 
 interface SettingsContextType {
   apiKey: string;
@@ -10,6 +10,8 @@ interface SettingsContextType {
   setFuriganaEnabled: (enabled: boolean) => void;
   adaptationMode: AdaptationMode;
   setAdaptationMode: (mode: AdaptationMode) => void;
+  suggestionsMode: SuggestionsMode;
+  setSuggestionsMode: (mode: SuggestionsMode) => void;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -29,6 +31,10 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const [adaptationMode, setAdaptationModeState] = useState<AdaptationMode>(() => {
     return (localStorage.getItem('nihongo_adaptation_mode') as AdaptationMode) || 'auto';
+  });
+
+  const [suggestionsMode, setSuggestionsModeState] = useState<SuggestionsMode>(() => {
+    return (localStorage.getItem('nihongo_suggestions_mode') as SuggestionsMode) || 'auto';
   });
 
   const setApiKey = (key: string) => {
@@ -51,6 +57,11 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     localStorage.setItem('nihongo_adaptation_mode', mode);
   };
 
+  const setSuggestionsMode = (mode: SuggestionsMode) => {
+    setSuggestionsModeState(mode);
+    localStorage.setItem('nihongo_suggestions_mode', mode);
+  };
+
   return (
     <SettingsContext.Provider
       value={{
@@ -62,6 +73,8 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setFuriganaEnabled,
         adaptationMode,
         setAdaptationMode,
+        suggestionsMode,
+        setSuggestionsMode,
       }}
     >
       {children}

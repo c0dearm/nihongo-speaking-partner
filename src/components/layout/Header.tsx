@@ -1,7 +1,7 @@
 import React from 'react';
-import { Mic, BookOpen, BookMarked, LayoutDashboard, Settings } from 'lucide-react';
+import { Mic, BookMarked, LayoutDashboard, Settings } from 'lucide-react';
 
-export type ActiveTab = 'partner' | 'drills' | 'notebook' | 'dashboard' | 'settings';
+export type ActiveTab = 'partner' | 'notebook' | 'dashboard' | 'settings';
 
 interface HeaderProps {
   activeTab: ActiveTab;
@@ -12,7 +12,6 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, streakDays }) => {
   const tabs = [
     { id: 'partner', label: 'Live Partner', icon: Mic },
-    { id: 'drills', label: 'JLPT Drills', icon: BookOpen },
     { id: 'notebook', label: 'Notebook', icon: BookMarked },
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'settings', label: 'Settings', icon: Settings },

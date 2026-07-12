@@ -18,6 +18,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ repository }) => {
     setFuriganaEnabled,
     adaptationMode,
     setAdaptationMode,
+    suggestionsMode,
+    setSuggestionsMode,
   } = useSettings();
 
   const [message, setMessage] = useState<string | null>(null);
@@ -209,6 +211,92 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ repository }) => {
               <span className="text-sm font-semibold text-slate-100 block">Rigid Benchmark</span>
               <span className="text-xs text-slate-400 block mt-1">
                 Strict exam practice. Locks the AI exactly to your selected JLPT level without simplifying vocabulary or speaking pace.
+              </span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      {/* Speaking Suggestions Mode */}
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-lg bg-indigo-950 text-indigo-400 border border-indigo-500/30">
+            <Brain className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-slate-100">Speaking Suggestions Mode</h3>
+            <p className="text-xs text-slate-400">
+              Control when and how AI response hints appear during Target-Oriented Roleplay Missions.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+          <label
+            className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
+              suggestionsMode === 'auto'
+                ? 'bg-indigo-950/40 border-indigo-500'
+                : 'bg-slate-950 border-slate-800 hover:border-slate-700'
+            }`}
+          >
+            <input
+              type="radio"
+              name="suggestions-mode"
+              value="auto"
+              checked={suggestionsMode === 'auto'}
+              onChange={() => setSuggestionsMode('auto')}
+              className="mt-1 accent-indigo-500"
+            />
+            <div>
+              <span className="text-sm font-semibold text-slate-100 block">Automatic (Recommended)</span>
+              <span className="text-xs text-slate-400 block mt-1">
+                AI automatically generates 2-3 response suggestions after every turn during missions.
+              </span>
+            </div>
+          </label>
+
+          <label
+            className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
+              suggestionsMode === 'manual'
+                ? 'bg-indigo-950/40 border-indigo-500'
+                : 'bg-slate-950 border-slate-800 hover:border-slate-700'
+            }`}
+          >
+            <input
+              type="radio"
+              name="suggestions-mode"
+              value="manual"
+              checked={suggestionsMode === 'manual'}
+              onChange={() => setSuggestionsMode('manual')}
+              className="mt-1 accent-indigo-500"
+            />
+            <div>
+              <span className="text-sm font-semibold text-slate-100 block">On-Demand (Manual)</span>
+              <span className="text-xs text-slate-400 block mt-1">
+                Suggestions only generate when you manually click the "Get Suggestions" hint button.
+              </span>
+            </div>
+          </label>
+
+          <label
+            className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
+              suggestionsMode === 'off'
+                ? 'bg-indigo-950/40 border-indigo-500'
+                : 'bg-slate-950 border-slate-800 hover:border-slate-700'
+            }`}
+          >
+            <input
+              type="radio"
+              name="suggestions-mode"
+              value="off"
+              checked={suggestionsMode === 'off'}
+              onChange={() => setSuggestionsMode('off')}
+              className="mt-1 accent-indigo-500"
+            />
+            <div>
+              <span className="text-sm font-semibold text-slate-100 block">Off (No Hints)</span>
+              <span className="text-xs text-slate-400 block mt-1">
+                Hides the suggestions panel completely for unassisted immersion and maximum challenge.
               </span>
             </div>
           </label>
