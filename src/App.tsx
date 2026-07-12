@@ -40,7 +40,7 @@ const MainContent: React.FC = () => {
         </div>
       )}
 
-      <main className="flex-1">
+      <main className="flex-1 pb-20 md:pb-0">
         {activeTab === 'partner' && <LivePartnerView repository={repository} />}
         {activeTab === 'notebook' && <NotebookView repository={repository} />}
         {activeTab === 'dashboard' && <DashboardView repository={repository} />}
