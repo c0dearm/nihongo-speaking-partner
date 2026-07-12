@@ -5,12 +5,12 @@ import { EvaluationService } from '../../services/ai/EvaluationService';
 import { LiveAudioClient } from '../../services/ai/LiveAudioClient';
 import { RoleplayScenarioService } from '../../services/scenarios/RoleplayScenarioService';
 import { ProficiencyProfileService } from '../../services/ai/ProficiencyProfileService';
-import { PersonaId, ConversationTurn, SessionReport, GrammarCorrection, RoleplayScenario, ProficiencyProfile, SpeakingSuggestion } from '../../types';
+import { PersonaId, ConversationTurn, SessionReport, GrammarCorrection, RoleplayScenario, ProficiencyProfile, SpeakingSuggestion, TurnVocabularyItem } from '../../types';
 import { useSettings } from '../../context/SettingsContext';
 import { renderFurigana } from '../../utils/furigana';
 import { WaveformVisualizer } from './WaveformVisualizer';
 import { CreateCustomScenarioModal } from './CreateCustomScenarioModal';
-import { Mic, PhoneOff, Sparkles, BookPlus, MessageSquare, X, Target, Plus, MessageCircle } from 'lucide-react';
+import { Mic, PhoneOff, Sparkles, BookPlus, BookOpen, MessageSquare, X, Target, Plus, MessageCircle } from 'lucide-react';
 
 interface LivePartnerViewProps {
   repository: StorageRepository;
@@ -38,6 +38,66 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
   const [rmsLevels, setRmsLevels] = useState({ inputRms: 0, outputRms: 0 });
   const [report, setReport] = useState<SessionReport | null>(null);
   const [generatingReport, setGeneratingReport] = useState(false);
+  const [turnVocabMap, setTurnVocabMap] = useState<Record<string, TurnVocabularyItem[]>>({});
+  const [loadingVocabIds, setLoadingVocabIds] = useState<Set<string>>(new Set());
+  const [expandedVocabIds, setExpandedVocabIds] = useState<Set<string>>(new Set());
+
+  const handleToggleTurnVocab = async (turnId: string, text: string) => {
+    if (expandedVocabIds.has(turnId)) {
+      setExpandedVocabIds((prev) => {
+        const next = new Set(prev);
+        next.delete(turnId);
+        return next;
+      });
+      return;
+    }
+
+    if (turnVocabMap[turnId]) {
+      setExpandedVocabIds((prev) => new Set(prev).add(turnId));
+      return;
+    }
+
+    if (!apiKey) {
+      setStatusMessage('Please configure your Gemini API Key in Settings to look up vocabulary.');
+      return;
+    }
+
+    setLoadingVocabIds((prev) => new Set(prev).add(turnId));
+    try {
+      const vocab = await evalService.lookupTurnVocabulary(text, defaultLevel, apiKey);
+      setTurnVocabMap((prev) => ({ ...prev, [turnId]: vocab }));
+      setExpandedVocabIds((prev) => new Set(prev).add(turnId));
+    } catch (e) {
+      console.error(e);
+      setStatusMessage('Failed to look up vocabulary.');
+    } finally {
+      setLoadingVocabIds((prev) => {
+        const next = new Set(prev);
+        next.delete(turnId);
+        return next;
+      });
+    }
+  };
+
+  const handleSaveVocabToNotebook = async (item: TurnVocabularyItem) => {
+    try {
+      await repository.saveNotebookItem({
+        id: `vocab-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        createdAt: Date.now(),
+        category: 'vocabulary',
+        jlptLevel: item.jlptLevel || defaultLevel,
+        originalText: item.word,
+        correctedText: `${item.word} (${item.reading})`,
+        furiganaText: `${item.word} (${item.reading})`,
+        explanation: item.meaning,
+        mastered: false,
+      });
+      setStatusMessage(`Saved "${item.word}" to Vocabulary Notebook!`);
+    } catch (e) {
+      console.error(e);
+      setStatusMessage('Failed to save word to notebook.');
+    }
+  };
   const [showDrawer, setShowDrawer] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string>('Ready to connect.');
@@ -353,6 +413,73 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
     alert('Added to Notebook!');
   };
 
+  const renderTurnVocabularyUI = (t: { id: string; speaker: string; text: string }) => {
+    if (t.speaker !== 'ai' || !t.text.trim()) return null;
+
+    const isLoading = loadingVocabIds.has(t.id);
+    const isExpanded = expandedVocabIds.has(t.id);
+    const vocabList = turnVocabMap[t.id];
+
+    return (
+      <div className="mt-2 pt-2 border-t border-slate-700/50">
+        <button
+          type="button"
+          onClick={() => handleToggleTurnVocab(t.id, t.text)}
+          disabled={isLoading}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-indigo-950/60 hover:bg-indigo-900/80 text-indigo-300 border border-indigo-700/50 transition-colors"
+        >
+          {isLoading ? (
+            <span className="animate-pulse">Loading Words...</span>
+          ) : (
+            <>
+              <BookOpen className="w-3.5 h-3.5" />
+              {isExpanded ? 'Hide Words' : 'Words'}
+            </>
+          )}
+        </button>
+
+        {isExpanded && vocabList && (
+          <div className="mt-3 space-y-2">
+            <p className="text-[11px] font-semibold text-indigo-300 flex items-center gap-1">
+              <BookOpen className="w-3 h-3" /> Key Vocabulary in this Turn:
+            </p>
+            {vocabList.length === 0 ? (
+              <p className="text-xs text-slate-400 italic">No complex vocabulary detected.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {vocabList.map((v, idx) => (
+                  <div
+                    key={idx}
+                    className="p-2.5 rounded-lg bg-slate-900/90 border border-slate-700/50 flex items-start justify-between gap-2"
+                  >
+                    <div>
+                      <div className="flex items-baseline gap-1.5 flex-wrap">
+                        <span className="text-sm font-bold text-slate-100">{v.word}</span>
+                        <span className="text-xs text-indigo-300">({v.reading})</span>
+                        <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-slate-800 text-slate-300 border border-slate-700">
+                          {v.jlptLevel}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-300 mt-1">{v.meaning}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleSaveVocabToNotebook(v)}
+                      title="Save to Vocabulary Notebook"
+                      className="p-1.5 rounded-lg bg-indigo-900/40 hover:bg-indigo-800/60 text-indigo-300 border border-indigo-700/50 transition-colors shrink-0"
+                    >
+                      <BookPlus className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const personas = personaService.getAllPersonas();
 
   return (
@@ -657,6 +784,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
                 <div className="text-sm text-slate-100 leading-relaxed">
                   {renderFurigana(t.furiganaText || t.text, furiganaEnabled)}
                 </div>
+                {renderTurnVocabularyUI(t)}
               </div>
             ))}
           </div>
@@ -774,6 +902,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
                     <div className="text-sm text-slate-100 leading-relaxed">
                       {renderFurigana(t.furiganaText || t.text, furiganaEnabled)}
                     </div>
+                    {renderTurnVocabularyUI(t)}
                   </div>
                 ))
               )}

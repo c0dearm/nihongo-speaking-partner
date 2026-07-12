@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { LivePartnerView } from './LivePartnerView';
 import { StorageRepository } from '../../services/storage/StorageRepository';
 import { SettingsProvider } from '../../context/SettingsContext';
+import { EvaluationService } from '../../services/ai/EvaluationService';
 
 // Mock LiveAudioClient
 const mockConnect = vi.fn().mockResolvedValue(undefined);
@@ -25,6 +26,7 @@ vi.mock('../../services/ai/LiveAudioClient', () => {
 });
 
 // Mock EvaluationService
+const mockLookupTurnVocabulary = vi.fn().mockResolvedValue([]);
 const mockGenerateSessionReport = vi.fn().mockResolvedValue({
   summary: 'Great conversation practice!',
   topGrammarCorrections: [
@@ -74,25 +76,34 @@ const mockGenerateSpeakingSuggestions = vi.fn().mockImplementation((_transcript,
 
 const mockGenerateFurigana = vi.fn().mockImplementation((text) => Promise.resolve(text));
 
+const sharedEvalServiceInstance = {
+  generateSessionReport: mockGenerateSessionReport,
+  generateSpeakingSuggestions: mockGenerateSpeakingSuggestions,
+  generateFurigana: mockGenerateFurigana,
+  lookupTurnVocabulary: mockLookupTurnVocabulary,
+};
+
 vi.mock('../../services/ai/EvaluationService', () => {
   return {
     EvaluationService: class {
-      generateSessionReport = mockGenerateSessionReport;
-      generateSpeakingSuggestions = mockGenerateSpeakingSuggestions;
-      generateFurigana = mockGenerateFurigana;
+      constructor() {
+        return sharedEvalServiceInstance;
+      }
     },
   };
 });
 
 describe('LivePartnerView', () => {
   const repo = new StorageRepository('test_partner_db_' + Math.random());
+  const evalService = new EvaluationService();
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
     turnCallback = undefined;
     localStorage.clear();
     localStorage.setItem('nihongo_api_key', 'test-api-key');
     vi.spyOn(window, 'alert').mockImplementation(() => {});
+    await repo.clearUserHistory();
   });
 
   it('renders persona selectors and conversation controls', async () => {
@@ -580,7 +591,68 @@ describe('LivePartnerView', () => {
 
     expect(mockGenerateFurigana).not.toHaveBeenCalled();
   });
+
+  it('allows toggling turn vocabulary lookup on AI turns and saving items to notebook', async () => {
+    vi.spyOn(evalService, 'lookupTurnVocabulary').mockResolvedValueOnce([
+      { word: '検討', reading: 'けんとう', meaning: 'Consideration', jlptLevel: 'N3' },
+    ]);
+
+    render(
+      <SettingsProvider>
+        <LivePartnerView repository={repo} />
+      </SettingsProvider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Free Open-Ended Chat/i }));
+    const startBtn = screen.getByText(/Start Live Conversation/i);
+    fireEvent.click(startBtn);
+
+    await waitFor(() => {
+      expect(turnCallback).toBeDefined();
+      expect(screen.getByText(/Transcript Drawer/i)).toBeInTheDocument();
+    });
+
+    // Open drawer and trigger an AI turn
+    fireEvent.click(screen.getByText(/Transcript Drawer/i));
+
+    act(() => {
+      turnCallback?.({ speaker: 'ai', text: '詳しい内容を検討します。' });
+      turnCallback?.({ turnComplete: true, speaker: 'ai', text: '詳しい内容を検討します。' });
+    });
+
+    const wordsBtns = await screen.findAllByRole('button', { name: /Words/i });
+    expect(wordsBtns.length).toBeGreaterThanOrEqual(1);
+    const wordsBtn = wordsBtns[0];
+
+    // Click to lookup and expand words
+    await act(async () => {
+      fireEvent.click(wordsBtn);
+    });
+
+    expect(evalService.lookupTurnVocabulary).toHaveBeenCalledWith(
+      '詳しい内容を検討します。',
+      'N4',
+      'test-api-key'
+    );
+
+    const vocabWords = await screen.findAllByText('検討');
+    expect(vocabWords[0]).toBeInTheDocument();
+    expect(screen.getAllByText('(けんとう)')[0]).toBeInTheDocument();
+    expect(screen.getAllByText('Consideration')[0]).toBeInTheDocument();
+
+    // Save item to notebook
+    const saveBtns = screen.getAllByTitle('Save to Vocabulary Notebook');
+    await act(async () => {
+      fireEvent.click(saveBtns[0]);
+    });
+
+    const items = await repo.getNotebookItems();
+    expect(items).toHaveLength(1);
+    expect(items[0].originalText).toBe('検討');
+    expect(items[0].category).toBe('vocabulary');
+  });
 });
+
 
 
 
