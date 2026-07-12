@@ -553,7 +553,37 @@ describe('LivePartnerView', () => {
     expect(adaptiveChip).toHaveClass('w-full', 'sm:w-auto');
     expect(hintsChip).toHaveClass('w-full', 'sm:w-auto');
   });
+
+  it('does not invoke generateFurigana on turn complete when furiganaEnabled is false', async () => {
+    mockGenerateFurigana.mockClear();
+    localStorage.setItem('nihongo_furigana', 'false');
+    render(
+      <SettingsProvider>
+        <LivePartnerView repository={repo} />
+      </SettingsProvider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Free Open-Ended Chat/i }));
+    const startBtn = screen.getByText(/Start Live Conversation/i);
+    await act(async () => {
+      fireEvent.click(startBtn);
+    });
+
+    await waitFor(() => {
+      expect(turnCallback).toBeDefined();
+    });
+
+    await act(async () => {
+      turnCallback?.({ speaker: 'ai', text: 'こんにちは' });
+      turnCallback?.({ speaker: 'ai', text: 'こんにちは', turnComplete: true });
+    });
+
+    expect(mockGenerateFurigana).not.toHaveBeenCalled();
+  });
 });
+
+
+
 
 
 

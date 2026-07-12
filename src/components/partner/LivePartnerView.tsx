@@ -176,11 +176,11 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
         setStatusMessage('AI interrupted by user speaking.');
         return;
       } else if (turn.turnComplete) {
-        // Mark the latest turn as complete and fetch its furigana readings in the background
+        // Mark the latest turn as complete and fetch its furigana readings in the background only when furigana is enabled
         setTranscript((prev) => {
           if (prev.length === 0) return prev;
           const last = prev[prev.length - 1];
-          if (apiKey && !last.furiganaText && last.text.trim() && !annotatingIdsRef.current.has(last.id)) {
+          if (furiganaEnabled && apiKey && !last.furiganaText && last.text.trim() && !annotatingIdsRef.current.has(last.id)) {
             annotatingIdsRef.current.add(last.id);
             evalService.generateFurigana(last.text, apiKey).then((furigana) => {
               if (furigana && furigana !== last.text) {

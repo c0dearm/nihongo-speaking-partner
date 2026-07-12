@@ -34,4 +34,18 @@ describe('renderFurigana', () => {
     expect(ruby).not.toBeNull();
     expect(ruby?.querySelector('rt')?.textContent).toBe('でんしゃ');
   });
+
+  it('strips bracketed furigana even when there is optional whitespace between kanji and brackets', () => {
+    const result = renderFurigana('私は漢字 [かんじ] を勉強 (べんきょう) しています', false);
+    expect(result).toBe('私は漢字 を勉強 しています');
+  });
+
+  it('renders ruby annotations even when there is optional whitespace between kanji and brackets', () => {
+    const { container } = render(<div>{renderFurigana('漢字 [かんじ]', true)}</div>);
+    const ruby = container.querySelector('ruby');
+    expect(ruby).not.toBeNull();
+    expect(ruby?.textContent).toContain('漢字');
+    expect(ruby?.querySelector('rt')?.textContent).toBe('かんじ');
+  });
 });
+
