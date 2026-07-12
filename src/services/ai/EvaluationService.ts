@@ -271,12 +271,14 @@ Text to annotate: "${trimmed}"`;
     const trimmed = text.trim();
     if (!trimmed) return [];
 
-    if (EvaluationService.vocabCache.has(trimmed)) {
-      return EvaluationService.vocabCache.get(trimmed)!;
+    const cacheKey = `${jlptLevel}:${trimmed}`;
+
+    if (EvaluationService.vocabCache.has(cacheKey)) {
+      return EvaluationService.vocabCache.get(cacheKey)!;
     }
 
-    if (EvaluationService.inFlightVocab.has(trimmed)) {
-      return EvaluationService.inFlightVocab.get(trimmed)!;
+    if (EvaluationService.inFlightVocab.has(cacheKey)) {
+      return EvaluationService.inFlightVocab.get(cacheKey)!;
     }
 
     const prompt = `Extract 3 to 5 key vocabulary words, compound kanji, or idiomatic phrases used in the following Japanese utterance.
@@ -316,18 +318,25 @@ For each item, provide the exact Japanese word, its furigana reading, a concise 
             ? (response.text as () => string)()
             : response.text) || '[]';
         const parsed = JSON.parse(rawText) as TurnVocabularyItem[];
-        const result = Array.isArray(parsed) ? parsed : [];
-        EvaluationService.vocabCache.set(trimmed, result);
+        const validLevels = new Set(['N5', 'N4', 'N3', 'N2', 'N1']);
+        const result = (Array.isArray(parsed) ? parsed : []).map((v) => {
+          const upperLevel = (v.jlptLevel || '').toUpperCase() as JLPTLevel;
+          return {
+            ...v,
+            jlptLevel: validLevels.has(upperLevel) ? upperLevel : jlptLevel,
+          };
+        });
+        EvaluationService.vocabCache.set(cacheKey, result);
         return result;
       } catch (e) {
         console.error('Failed to lookup turn vocabulary:', e);
         return [];
       } finally {
-        EvaluationService.inFlightVocab.delete(trimmed);
+        EvaluationService.inFlightVocab.delete(cacheKey);
       }
     })();
 
-    EvaluationService.inFlightVocab.set(trimmed, promise);
+    EvaluationService.inFlightVocab.set(cacheKey, promise);
     return promise;
   }
 

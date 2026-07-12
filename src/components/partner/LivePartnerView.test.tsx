@@ -605,7 +605,9 @@ describe('LivePartnerView', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Free Open-Ended Chat/i }));
     const startBtn = screen.getByText(/Start Live Conversation/i);
-    fireEvent.click(startBtn);
+    await act(async () => {
+      fireEvent.click(startBtn);
+    });
 
     await waitFor(() => {
       expect(turnCallback).toBeDefined();
@@ -650,6 +652,83 @@ describe('LivePartnerView', () => {
     expect(items).toHaveLength(1);
     expect(items[0].originalText).toBe('検討');
     expect(items[0].category).toBe('vocabulary');
+  });
+
+  it('clears turn vocabulary state when starting and ending a session', async () => {
+    vi.spyOn(evalService, 'lookupTurnVocabulary').mockResolvedValue([
+      { word: '練習', reading: 'れんしゅう', meaning: 'Practice', jlptLevel: 'N4' },
+    ]);
+
+    render(
+      <SettingsProvider>
+        <LivePartnerView repository={repo} />
+      </SettingsProvider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Free Open-Ended Chat/i }));
+    const startBtn = screen.getByText(/Start Live Conversation/i);
+    await act(async () => {
+      fireEvent.click(startBtn);
+    });
+
+    await waitFor(() => {
+      expect(turnCallback).toBeDefined();
+      expect(screen.getByText(/Transcript Drawer/i)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText(/Transcript Drawer/i));
+
+    // Turn 1 with fixed id
+    act(() => {
+      turnCallback?.({ id: 'fixed-turn-id', speaker: 'ai', text: '日本語を練習します。' });
+      turnCallback?.({ id: 'fixed-turn-id', turnComplete: true, speaker: 'ai', text: '日本語を練習します。' });
+    });
+
+    const wordsBtns = await screen.findAllByRole('button', { name: /Words/i });
+    expect(wordsBtns.length).toBeGreaterThanOrEqual(1);
+    await act(async () => {
+      fireEvent.click(wordsBtns[0]);
+    });
+
+    expect(await screen.findAllByText('練習')).toHaveLength(2); // One in main view, one in drawer
+    expect(screen.getAllByText(/Hide Words/i).length).toBeGreaterThanOrEqual(1);
+
+    // Close the drawer before ending session so showDrawer returns to false
+    const closeButtons = screen.getAllByRole('button');
+    const xButton = closeButtons.find((btn) => btn.querySelector('svg.lucide-x'));
+    if (xButton) {
+      await act(async () => {
+        fireEvent.click(xButton);
+      });
+    }
+
+    // End session - this should clear turnVocabMap, loadingVocabIds, expandedVocabIds
+    await act(async () => {
+      fireEvent.click(screen.getByText(/End Conversation/i));
+    });
+
+    turnCallback = undefined;
+
+    // Start a new session
+    await act(async () => {
+      fireEvent.click(screen.getByText(/Start Live Conversation/i));
+    });
+
+    await waitFor(() => {
+      expect(turnCallback).toBeDefined();
+      expect(screen.getAllByText(/Transcript Drawer/i).length).toBeGreaterThanOrEqual(1);
+    });
+
+    // Trigger another turn with the same turn id
+    act(() => {
+      turnCallback?.({ id: 'fixed-turn-id', speaker: 'ai', text: '日本語を練習します。' });
+      turnCallback?.({ id: 'fixed-turn-id', turnComplete: true, speaker: 'ai', text: '日本語を練習します。' });
+    });
+
+    // If turnVocabMap and expandedVocabIds were NOT cleared, "Hide Words" and "練習" would immediately be visible without clicking Words button
+    expect(screen.queryByText(/Hide Words/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('練習')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /Words/i }).length).toBeGreaterThanOrEqual(1);
   });
 });
 

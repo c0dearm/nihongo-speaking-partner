@@ -228,6 +228,9 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
     setTranscript([]);
     setReport(null);
     setSuggestions([]);
+    setTurnVocabMap({});
+    setLoadingVocabIds(new Set());
+    setExpandedVocabIds(new Set());
     lastSuggestedTurnIdRef.current = null;
     if ((mode === 'free' || Boolean(selectedScenario)) && suggestionsMode === 'auto') {
       setIsLoadingSuggestions(true);
@@ -299,7 +302,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
         return [
           ...prev,
           {
-            id: 'turn-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+            id: turn.id || 'turn-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
             speaker: turn.speaker,
             text: turn.text,
             timestamp: Date.now(),
@@ -338,6 +341,9 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
   const endSession = async () => {
     clientRef.current?.disconnect();
     setIsConnected(false);
+    setTurnVocabMap({});
+    setLoadingVocabIds(new Set());
+    setExpandedVocabIds(new Set());
 
     if (transcript.length > 0) {
       const elapsed = Math.max(1, Math.round((Date.now() - sessionStartTimeRef.current) / 1000));

@@ -4,6 +4,7 @@ import { PersonaService } from '../persona/PersonaService';
 import { JLPTLevel, PersonaId, RoleplayScenario, ProficiencyProfile, AdaptationMode } from '../../types';
 
 export interface TurnEvent {
+  id?: string;
   speaker: 'user' | 'ai';
   text: string;
   interrupted?: boolean;

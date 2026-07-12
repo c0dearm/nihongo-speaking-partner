@@ -550,6 +550,53 @@ describe('EvaluationService', () => {
     expect(res3).toEqual(sampleVocab);
     expect(mockAiClient.models.generateContent).toHaveBeenCalledTimes(1);
   });
+
+  it('lookupTurnVocabularyWithClient keys cache by jlptLevel and normalizes level', async () => {
+    const service = new EvaluationService();
+    const mockGenerateContent = vi.fn().mockImplementation(async ({ contents }: any) => {
+      if (contents.includes('Student\'s Target Proficiency: JLPT N5')) {
+        return {
+          text: JSON.stringify([
+            { word: '単語', reading: 'たんご', meaning: 'word', jlptLevel: 'n5' },
+            { word: '無効', reading: 'むこう', meaning: 'invalid level', jlptLevel: 'INVALID' },
+          ]),
+        };
+      }
+      return {
+        text: JSON.stringify([
+          { word: '単語', reading: 'たんご', meaning: 'word', jlptLevel: 'N2' },
+        ]),
+      };
+    });
+
+    const mockAiClient = {
+      models: {
+        generateContent: mockGenerateContent,
+      },
+    };
+
+    const n5Result = await service.lookupTurnVocabularyWithClient(
+      mockAiClient as any,
+      '同じテキスト',
+      'N5'
+    );
+
+    expect(n5Result).toEqual([
+      { word: '単語', reading: 'たんご', meaning: 'word', jlptLevel: 'N5' },
+      { word: '無効', reading: 'むこう', meaning: 'invalid level', jlptLevel: 'N5' },
+    ]);
+
+    const n2Result = await service.lookupTurnVocabularyWithClient(
+      mockAiClient as any,
+      '同じテキスト',
+      'N2'
+    );
+
+    expect(n2Result).toEqual([
+      { word: '単語', reading: 'たんご', meaning: 'word', jlptLevel: 'N2' },
+    ]);
+    expect(mockGenerateContent).toHaveBeenCalledTimes(2);
+  });
 });
 
 
