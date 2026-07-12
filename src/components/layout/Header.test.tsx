@@ -41,5 +41,12 @@ describe('Header', () => {
     fireEvent.click(notebookTabs[1]); // Click bottom mobile nav item
     expect(setActiveTab).toHaveBeenCalledWith('notebook');
   });
+
+  it('renders navigation elements with distinct aria-labels for accessibility', () => {
+    render(<Header activeTab="partner" setActiveTab={() => {}} streakDays={5} />);
+
+    expect(screen.getByRole('navigation', { name: 'Desktop navigation' })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Mobile navigation' })).toBeInTheDocument();
+  });
 });
 

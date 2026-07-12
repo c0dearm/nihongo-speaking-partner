@@ -529,6 +529,30 @@ describe('LivePartnerView', () => {
       expect(screen.getByText(/What kind of movies or music are you interested in recently/i)).toBeInTheDocument(); // mock suggestion string for free chat
     });
   });
+
+  it('renders studio header buttons and controls with responsive mobile classes', () => {
+    render(
+      <SettingsProvider>
+        <LivePartnerView repository={repo} />
+      </SettingsProvider>
+    );
+
+    const missionsBtn = screen.getByRole('button', { name: /Goal-Oriented Roleplay Missions/i });
+    const freeChatBtn = screen.getByRole('button', { name: /Free Open-Ended Chat/i });
+    const modeSwitcherWrapper = missionsBtn.closest('div')!;
+
+    expect(modeSwitcherWrapper).toHaveClass('flex-col', 'sm:flex-row');
+    expect(missionsBtn).toHaveClass('w-full', 'sm:w-auto');
+    expect(freeChatBtn).toHaveClass('w-full', 'sm:w-auto');
+
+    const adaptiveChip = screen.getByText(/Adaptive Mode: AUTO/i).closest('button')!;
+    const hintsChip = screen.getByText(/Hints: AUTO/i).closest('button')!;
+    const modeChipsWrapper = adaptiveChip.closest('div')!;
+
+    expect(modeChipsWrapper).toHaveClass('flex-col', 'sm:flex-row');
+    expect(adaptiveChip).toHaveClass('w-full', 'sm:w-auto');
+    expect(hintsChip).toHaveClass('w-full', 'sm:w-auto');
+  });
 });
 
 

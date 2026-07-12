@@ -354,13 +354,13 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center flex-wrap gap-3 w-full md:w-auto">
-          <div className="flex items-center flex-wrap gap-2 w-full sm:w-auto">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
             <button
               type="button"
               disabled={isConnected}
               title={isConnected ? "Mode change will apply on next connection" : ""}
               onClick={() => setAdaptationMode(adaptationMode === 'auto' ? 'rigid' : 'auto')}
-              className={`flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold border transition-all flex-1 sm:flex-initial ${
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold border transition-all w-full sm:w-auto ${
                 adaptationMode === 'auto'
                   ? 'bg-indigo-950/60 border-indigo-500/40 text-indigo-300 hover:bg-indigo-900/80'
                   : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
@@ -372,7 +372,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
             <button
               type="button"
               onClick={toggleSuggestionsMode}
-              className={`flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold border transition-all flex-1 sm:flex-initial ${
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold border transition-all w-full sm:w-auto ${
                 suggestionsMode !== 'off'
                   ? 'bg-amber-950/40 border-amber-500/40 text-amber-300 hover:bg-amber-900/60'
                   : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
