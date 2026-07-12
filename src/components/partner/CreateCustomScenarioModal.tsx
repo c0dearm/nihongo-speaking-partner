@@ -118,7 +118,7 @@ export const CreateCustomScenarioModal: React.FC<CreateCustomScenarioModalProps>
             <select
               id="mission-category"
               value={category}
-              onChange={(e) => setCategory(e.target.value as any)}
+              onChange={(e) => setCategory(e.target.value as RoleplayScenario['category'])}
               className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
             >
               <option value="daily_life">Daily Life</option>
