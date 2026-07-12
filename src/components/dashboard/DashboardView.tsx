@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { StorageRepository } from '../../services/storage/StorageRepository';
-import { SessionRecord, DrillProgressRecord, UserStatsRecord } from '../../types';
-import { Flame, Clock, Trophy, CheckCircle2 } from 'lucide-react';
+import { SessionRecord, UserStatsRecord } from '../../types';
+import { Flame, Clock, Target, TrendingUp } from 'lucide-react';
 
 interface DashboardViewProps {
   repository: StorageRepository;
@@ -10,20 +10,17 @@ interface DashboardViewProps {
 export const DashboardView: React.FC<DashboardViewProps> = ({ repository }) => {
   const [stats, setStats] = useState<UserStatsRecord | null>(null);
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
-  const [drillsProgress, setDrillsProgress] = useState<DrillProgressRecord[]>([]);
 
   useEffect(() => {
     let active = true;
     (async () => {
-      const [s, sess, d] = await Promise.all([
+      const [s, sess] = await Promise.all([
         repository.getUserStats(),
         repository.getSessions(),
-        repository.getDrillProgressList(),
       ]);
       if (active) {
         setStats(s);
         setSessions(sess);
-        setDrillsProgress(d);
       }
     })();
     return () => {
@@ -35,12 +32,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ repository }) => {
     return <div className="p-8 text-center text-slate-400">Loading study dashboard...</div>;
   }
 
-  const avgDrillScore =
-    drillsProgress.length > 0
-      ? Math.round(
-          drillsProgress.reduce((acc, d) => acc + d.assessment.overallScore, 0) /
-            drillsProgress.length
-        )
+  const missionSessions = sessions.filter((s) => Boolean(s.feedbackReport?.goalVerdict));
+  const successfulMissions = missionSessions.filter(
+    (s) =>
+      s.feedbackReport?.goalVerdict?.status === 'ACHIEVED' ||
+      s.feedbackReport?.goalVerdict?.status === 'PARTIALLY_ACHIEVED'
+  ).length;
+  const missionSuccessRate =
+    missionSessions.length > 0
+      ? Math.round((successfulMissions / missionSessions.length) * 100)
       : 0;
 
   return (
@@ -73,23 +73,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ repository }) => {
           </div>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 flex items-center gap-4">
-          <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-400">
-            <CheckCircle2 className="w-6 h-6" />
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 flex items-center gap-4">
+          <div className="p-3 bg-indigo-950/60 rounded-xl text-indigo-400 border border-indigo-500/30">
+            <Target className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xs text-slate-400">Completed Drills</p>
-            <p className="text-2xl font-bold text-slate-100">{drillsProgress.length}</p>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Roleplay Missions</p>
+            <p className="text-2xl font-bold text-slate-100 mt-0.5">{missionSessions.length}</p>
           </div>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 flex items-center gap-4">
-          <div className="p-3 rounded-xl bg-purple-500/10 text-purple-400">
-            <Trophy className="w-6 h-6" />
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 flex items-center gap-4">
+          <div className="p-3 bg-emerald-950/60 rounded-xl text-emerald-400 border border-emerald-500/30">
+            <TrendingUp className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xs text-slate-400">Avg Drill Score</p>
-            <p className="text-2xl font-bold text-slate-100">{avgDrillScore}%</p>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Mission Success Rate</p>
+            <p className="text-2xl font-bold text-slate-100 mt-0.5">{missionSessions.length > 0 ? `${missionSuccessRate}%` : '—'}</p>
           </div>
         </div>
       </div>

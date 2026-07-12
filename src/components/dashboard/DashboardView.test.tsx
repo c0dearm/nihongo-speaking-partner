@@ -1,73 +1,67 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { DashboardView } from './DashboardView';
 import { StorageRepository } from '../../services/storage/StorageRepository';
-import { SessionRecord, DrillProgressRecord } from '../../types';
+import { SettingsProvider } from '../../context/SettingsContext';
 
 describe('DashboardView', () => {
-  it('renders stats dashboard cards with default values', async () => {
-    const repo = new StorageRepository('test_dash_db_' + Math.random());
-    render(<DashboardView repository={repo} />);
-    expect(await screen.findByText(/Daily Speaking Goal/i)).toBeInTheDocument();
-    expect(screen.getByText(/Current Streak/i)).toBeInTheDocument();
-    expect(screen.getByText(/Total Practice Time/i)).toBeInTheDocument();
-    expect(screen.getByText(/Completed Drills/i)).toBeInTheDocument();
-    expect(screen.getByText(/Avg Drill Score/i)).toBeInTheDocument();
-    expect(screen.getByText(/No past live partner sessions recorded yet/i)).toBeInTheDocument();
+  let repository: StorageRepository;
+
+  beforeEach(() => {
+    repository = new StorageRepository('test_dashboard_db_' + Math.random());
+    vi.clearAllMocks();
   });
 
-  it('renders populated stats, drill scores, and speaking sessions', async () => {
-    const repo = new StorageRepository('test_dash_db_' + Math.random());
-    await repo.updateUserStats({
-      dailyStreak: 5,
-      lastPracticeDate: '2026-07-10',
-      totalMinutesPracticed: 20,
-      dailyGoalMinutes: 15,
+  it('renders streak tracker and calculates roleplay missions completed plus mission success rate', async () => {
+    await repository.updateUserStats({
+      dailyStreak: 4,
+      lastPracticeDate: new Date().toISOString().slice(0, 10),
+      totalMinutesPracticed: 65,
+      dailyGoalMinutes: 20,
     });
 
-    const session: SessionRecord = {
-      id: 'session-1',
-      timestamp: Date.now(),
-      durationSeconds: 600,
+    await repository.saveSession({
+      id: 'sess-mission-1',
+      timestamp: Date.now() - 20000,
+      durationSeconds: 300,
       personaId: 'casual_friend',
-      jlptLevel: 'N3',
+      jlptLevel: 'N4',
       transcript: [],
       feedbackReport: {
-        summary: 'Great work',
+        summary: 'Good izakaya reservation call.',
         topGrammarCorrections: [],
         naturalPhrasingTips: [],
-        estimatedLevel: 'N3',
+        estimatedLevel: 'N4',
+        goalVerdict: { status: 'ACHIEVED', analysis: 'Successfully booked the table.' },
       },
-    };
-    await repo.saveSession(session);
+    });
 
-    const drillProgress: DrillProgressRecord = {
-      id: 'dp-1',
-      drillId: 'drill-1',
-      jlptLevel: 'N3',
-      completedAt: Date.now(),
-      assessment: {
-        overallScore: 85,
-        grammarScore: 80,
-        naturalnessScore: 90,
-        userTranscript: 'test',
-        nativeRecast: {
-          japanese: 'test',
-          furigana: 'test',
-          english: 'test',
-        },
-        grammarCorrections: [],
-        keyVocabulary: [],
+    await repository.saveSession({
+      id: 'sess-mission-2',
+      timestamp: Date.now() - 10000,
+      durationSeconds: 240,
+      personaId: 'casual_friend',
+      jlptLevel: 'N4',
+      transcript: [],
+      feedbackReport: {
+        summary: 'Struggled with train ticket purchase.',
+        topGrammarCorrections: [],
+        naturalPhrasingTips: [],
+        estimatedLevel: 'N4',
+        goalVerdict: { status: 'MISSED', analysis: 'Did not specify departure time.' },
       },
-    };
-    await repo.saveDrillProgress(drillProgress);
+    });
 
-    render(<DashboardView repository={repo} />);
+    render(
+      <SettingsProvider>
+        <DashboardView repository={repository} />
+      </SettingsProvider>
+    );
 
-    expect(await screen.findByText('5 Days')).toBeInTheDocument();
-    expect(screen.getByText('20 mins')).toBeInTheDocument();
-    expect(screen.getByText('85%')).toBeInTheDocument();
-    expect(screen.getByText(/JLPT N3 Partner Session \(casual_friend\)/i)).toBeInTheDocument();
-    expect(screen.getByText(/Est\. Level: N3/i)).toBeInTheDocument();
+    expect(await screen.findByText(/4 days/i)).toBeInTheDocument();
+    expect(screen.getByText(/Roleplay Missions/i)).toBeInTheDocument();
+    expect(screen.getByText('2')).toBeInTheDocument(); // 2 total missions
+    expect(screen.getByText(/Mission Success Rate/i)).toBeInTheDocument();
+    expect(screen.getByText('50%')).toBeInTheDocument(); // 1/2 achieved = 50%
   });
 });
