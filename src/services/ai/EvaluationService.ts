@@ -215,12 +215,12 @@ Evaluate whether the user successfully communicated all requirements of their se
       return EvaluationService.furiganaCache.get(trimmed)!;
     }
 
-    const prompt = `Add Japanese furigana readings to the following text using round bracket format where each kanji word is followed by its reading in parentheses, for example: 漢字(かんじ)を読む(よむ). Only output the annotated text with round parentheses, nothing else. Do not use square brackets.
+    const prompt = `Add Japanese furigana readings to the following text using square bracket format where each kanji word is directly followed by its reading in square brackets, for example: 漢字[かんじ]を読む[よむ]. Only output the annotated text with square brackets, nothing else. Do not wrap output in markdown code blocks or quotes.
 Text to annotate: "${trimmed}"`;
 
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-3.5-flash',
+        model: 'gemini-3.1-flash-lite-preview',
         contents: prompt,
         config: {
           temperature: 0.1,
@@ -229,7 +229,9 @@ Text to annotate: "${trimmed}"`;
         } as any,
       });
       const raw = typeof response.text === 'function' ? (response.text as () => string)() : response.text;
-      const result = raw ? raw.trim() : text;
+      let result = raw ? raw.trim() : text;
+      // Strip any markdown code blocks or backticks if returned by the model
+      result = result.replace(/^```(?:json|text)?\n?|\n?```$/gi, '').replace(/^`|`$/g, '').trim();
       EvaluationService.furiganaCache.set(trimmed, result);
       return result;
     } catch (e) {

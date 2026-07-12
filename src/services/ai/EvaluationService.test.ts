@@ -444,7 +444,32 @@ describe('EvaluationService', () => {
       })
     );
   });
+
+  it('generateFuriganaWithClient calls gemini-3.1-flash-lite-preview with square bracket prompt and strips markdown code blocks', async () => {
+    const service = new EvaluationService();
+    const mockAiClient = {
+      models: {
+        generateContent: vi.fn().mockResolvedValue({
+          text: '```text\n私は漢字[かんじ]を勉強[べんきょう]しています\n```',
+        }),
+      },
+    };
+
+    const result = await service.generateFuriganaWithClient(
+      mockAiClient as any,
+      '私は漢字を勉強しています'
+    );
+
+    expect(result).toBe('私は漢字[かんじ]を勉強[べんきょう]しています');
+    expect(mockAiClient.models.generateContent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: 'gemini-3.1-flash-lite-preview',
+        contents: expect.stringContaining('漢字[かんじ]を読む[よむ]'),
+      })
+    );
+  });
 });
+
 
 
 

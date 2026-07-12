@@ -48,4 +48,3 @@ describe('renderFurigana', () => {
     expect(ruby?.querySelector('rt')?.textContent).toBe('かんじ');
   });
 });
-
