@@ -283,6 +283,35 @@ describe('StorageRepository', () => {
       aiRole: 'Barista',
     });
 
+    await repo.saveDrillProgress({
+      id: 'dp-1',
+      drillId: 'd-1',
+      jlptLevel: 'N4',
+      completedAt: Date.now(),
+      assessment: {
+        overallScore: 90,
+        grammarScore: 90,
+        naturalnessScore: 90,
+        userTranscript: 'してはいけません',
+        nativeRecast: {
+          japanese: 'してはいけません',
+          furigana: 'してはいけません',
+          english: 'You must not do that.',
+        },
+        grammarCorrections: [],
+        keyVocabulary: [],
+      },
+    });
+
+    await repo.saveCustomDrill({
+      id: 'cd-1',
+      title: 'Custom Drill',
+      category: 'scenario',
+      jlptLevel: 'N4',
+      targetGrammar: '〜てはいけません',
+      promptText: 'Must not do',
+    });
+
     await repo.updateUserStats({
       dailyStreak: 7,
       lastPracticeDate: '2026-07-12',
@@ -300,6 +329,9 @@ describe('StorageRepository', () => {
     const notebookItems = await repo.getNotebookItems();
     expect(notebookItems).toHaveLength(0);
 
+    const drillsProgress = await repo.getDrillProgressList();
+    expect(drillsProgress).toHaveLength(0);
+
     // 4. Verify user stats reset streak/minutes but preserved dailyGoalMinutes
     const stats = await repo.getUserStats();
     expect(stats.dailyStreak).toBe(0);
@@ -307,8 +339,11 @@ describe('StorageRepository', () => {
     expect(stats.lastPracticeDate).toBe('');
     expect(stats.dailyGoalMinutes).toBe(30);
 
-    // 5. Verify custom scenarios remain untouched
+    // 5. Verify custom scenarios and drills remain untouched
     const scenarios = await repo.getCustomScenarios();
     expect(scenarios.some(s => s.id === 'custom-scen-1')).toBe(true);
+
+    const customDrills = await repo.getCustomDrills();
+    expect(customDrills.some(d => d.id === 'cd-1')).toBe(true);
   });
 });

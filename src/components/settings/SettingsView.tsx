@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import { JLPTLevel } from '../../types';
 import { StorageRepository } from '../../services/storage/StorageRepository';
-import { Key, Upload, Download, ShieldCheck, Brain } from 'lucide-react';
+import { Key, Upload, Download, ShieldCheck, Brain, Trash2 } from 'lucide-react';
 
 interface SettingsViewProps {
   repository: StorageRepository;
+  onHistoryCleared?: () => void;
 }
 
-export const SettingsView: React.FC<SettingsViewProps> = ({ repository }) => {
+export const SettingsView: React.FC<SettingsViewProps> = ({ repository, onHistoryCleared }) => {
   const {
     apiKey,
     setApiKey,
@@ -64,6 +65,24 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ repository }) => {
       setMessage('Failed to import JSON backup. Invalid file format.');
     } finally {
       e.target.value = '';
+    }
+  };
+
+  const handleClearHistory = async () => {
+    const confirmed = window.confirm(
+      'Are you sure you want to permanently clear all practice sessions, notebook items, and study streaks? Your API key, settings, and custom roleplay missions will be preserved.'
+    );
+    if (!confirmed) return;
+
+    try {
+      await repository.clearUserHistory();
+      onHistoryCleared?.();
+      setMessage('User practice history cleared successfully.');
+      alert('User practice history cleared successfully.');
+    } catch (err) {
+      console.error('Failed to clear user history:', err);
+      setMessage('An error occurred while clearing user history.');
+      alert('An error occurred while clearing user history.');
     }
   };
 
@@ -322,6 +341,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ repository }) => {
             Import Backup JSON
             <input type="file" accept=".json" onChange={handleImport} className="hidden" />
           </label>
+
+          <button
+            type="button"
+            onClick={handleClearHistory}
+            className="flex items-center gap-2 px-4 py-2 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-500/30 rounded-lg text-sm font-medium transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+            Clear User Practice History
+          </button>
         </div>
       </div>
     </div>

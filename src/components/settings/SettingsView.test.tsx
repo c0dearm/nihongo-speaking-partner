@@ -127,5 +127,46 @@ describe('SettingsView', () => {
     expect(manualRadio.checked).toBe(true);
     expect(localStorage.getItem('nihongo_suggestions_mode')).toBe('manual');
   });
+
+  it('clears user practice history when clear history button is clicked and confirmed', async () => {
+    const onHistoryCleared = vi.fn();
+    vi.spyOn(window, 'confirm').mockReturnValueOnce(true);
+    vi.spyOn(window, 'alert').mockImplementation(() => {});
+
+    render(
+      <SettingsProvider>
+        <SettingsView repository={repo} onHistoryCleared={onHistoryCleared} />
+      </SettingsProvider>
+    );
+
+    const clearBtn = screen.getByRole('button', { name: /Clear User Practice History/i });
+    fireEvent.click(clearBtn);
+
+    expect(window.confirm).toHaveBeenCalledWith(
+      expect.stringContaining('Are you sure you want to permanently clear all practice sessions, notebook items, and study streaks?')
+    );
+
+    await waitFor(() => {
+      expect(onHistoryCleared).toHaveBeenCalled();
+    });
+  });
+
+  it('does not clear history if the user cancels the confirmation dialog', async () => {
+    const onHistoryCleared = vi.fn();
+    vi.spyOn(window, 'confirm').mockReturnValueOnce(false);
+    const clearSpy = vi.spyOn(repo, 'clearUserHistory');
+
+    render(
+      <SettingsProvider>
+        <SettingsView repository={repo} onHistoryCleared={onHistoryCleared} />
+      </SettingsProvider>
+    );
+
+    const clearBtn = screen.getByRole('button', { name: /Clear User Practice History/i });
+    fireEvent.click(clearBtn);
+
+    expect(clearSpy).not.toHaveBeenCalled();
+    expect(onHistoryCleared).not.toHaveBeenCalled();
+  });
 });
 

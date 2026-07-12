@@ -44,7 +44,12 @@ const MainContent: React.FC = () => {
         {activeTab === 'partner' && <LivePartnerView repository={repository} />}
         {activeTab === 'notebook' && <NotebookView repository={repository} />}
         {activeTab === 'dashboard' && <DashboardView repository={repository} />}
-        {activeTab === 'settings' && <SettingsView repository={repository} />}
+        {activeTab === 'settings' && (
+          <SettingsView
+            repository={repository}
+            onHistoryCleared={() => setStreakDays(0)}
+          />
+        )}
       </main>
     </div>
   );
