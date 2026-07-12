@@ -39,4 +39,42 @@ describe('PersonaService', () => {
     expect(instruction).toContain('The user is roleplaying as: Customer calling the izakaya');
     expect(instruction).toContain('The user\'s secret goal for this conversation is: Reserve a table for 5 people for Saturday at 7pm under Tanaka.');
   });
+
+  it('injects dynamic proficiency profile and real-time adaptation rules when adaptationMode is auto', () => {
+    const service = new PersonaService();
+    const prompt = service.buildSystemInstruction(
+      'casual_friend',
+      'N4',
+      true,
+      undefined,
+      {
+        estimatedLevel: 'N3',
+        recentStruggles: ['verb conjugations (use te-form correctly)'],
+        recentStrengths: [],
+        totalPracticeMinutes: 120,
+      },
+      'auto'
+    );
+
+    expect(prompt).toContain('DYNAMIC ADAPTIVE PROFICIENCY PROFILE');
+    expect(prompt).toContain('historical evaluated proficiency is approximately: N3');
+    expect(prompt).toContain('verb conjugations (use te-form correctly)');
+    expect(prompt).toContain('REAL-TIME ADAPTATION RULES');
+  });
+
+  it('injects rigid benchmark instructions when adaptationMode is rigid', () => {
+    const service = new PersonaService();
+    const prompt = service.buildSystemInstruction(
+      'casual_friend',
+      'N4',
+      true,
+      undefined,
+      undefined,
+      'rigid'
+    );
+
+    expect(prompt).toContain('Adaptation Mode: RIGID BENCHMARK');
+    expect(prompt).not.toContain('DYNAMIC ADAPTIVE PROFICIENCY PROFILE');
+  });
 });
+
