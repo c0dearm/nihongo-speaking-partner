@@ -56,7 +56,7 @@ export class LiveAudioClient {
         setup: {
           model: 'models/gemini-3.1-flash-live-preview',
           generationConfig: {
-            responseModalities: ['AUDIO', 'TEXT'],
+            responseModalities: ['AUDIO'],
             speechConfig: {
               voiceConfig: {
                 prebuiltVoiceConfig: {
