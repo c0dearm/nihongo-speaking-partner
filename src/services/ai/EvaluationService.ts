@@ -6,9 +6,13 @@ import {
   SpeakingAssessment,
   RoleplayScenario,
   SpeakingSuggestion,
+  PersonaId,
 } from '../../types';
+import { PersonaService } from '../persona/PersonaService';
 
 export class EvaluationService {
+  private personaService = new PersonaService();
+
   private getClient(apiKey: string): GoogleGenAI {
     return new GoogleGenAI({ apiKey });
   }
@@ -234,13 +238,34 @@ Text to annotate: "${trimmed}"`;
     }
   }
 
+  getKickstartSuggestions(): SpeakingSuggestion[] {
+    return [
+      {
+        japanese: 'すみません、お話ししたいことがあるのですが。',
+        furigana: 'すみません、お話[はな]ししたいことがあるのですが。',
+        english: 'Excuse me, I have something I would like to talk to you about.',
+        tip: 'A polite, versatile conversation starter to initiate your roleplay mission.',
+      },
+      {
+        japanese: 'こんにちは。よろしくお願いします。',
+        furigana: 'こんにちは。よろしくお願[ねが]いします。',
+        english: 'Hello. Thank you in advance / nice to meet you.',
+        tip: 'A standard Japanese greeting to open the interaction.',
+      },
+    ];
+  }
+
   async generateSpeakingSuggestions(
     transcript: ConversationTurn[],
-    scenario: RoleplayScenario,
     targetLevel: JLPTLevel,
-    apiKey: string
+    apiKey: string,
+    scenario?: RoleplayScenario,
+    personaId: PersonaId = 'casual_friend'
   ): Promise<SpeakingSuggestion[]> {
     if (!apiKey || apiKey === 'test-api-key') {
+      if (transcript.length === 0) {
+        return this.getKickstartSuggestions();
+      }
       return [
         {
           japanese: 'すみません、土曜日の夜７時に５人で予約したいのですが。',
@@ -259,23 +284,26 @@ Text to annotate: "${trimmed}"`;
 
     try {
       const ai = this.getClient(apiKey);
-      return await this.generateSpeakingSuggestionsWithClient(ai, transcript, scenario, targetLevel);
+      return await this.generateSpeakingSuggestionsWithClient(ai, transcript, targetLevel, scenario, personaId);
     } catch (err) {
       console.error('[EvaluationService] Failed to generate speaking suggestions:', err);
-      return [];
+      return transcript.length === 0 ? this.getKickstartSuggestions() : [];
     }
   }
 
   async generateSpeakingSuggestionsWithClient(
     ai: GoogleGenAI,
     transcript: ConversationTurn[],
-    scenario: RoleplayScenario,
-    targetLevel: JLPTLevel
+    targetLevel: JLPTLevel,
+    scenario?: RoleplayScenario,
+    personaId: PersonaId = 'casual_friend'
   ): Promise<SpeakingSuggestion[]> {
     try {
       const recentTurns = transcript.slice(-6).map(t => `${t.speaker === 'user' ? 'User (Student)' : 'AI Partner'}: ${t.text}`).join('\n');
 
-      const prompt = `You are an expert Japanese speaking coach assisting a student participating in a roleplay conversation.
+      let prompt = '';
+      if (scenario) {
+        prompt = `You are an expert Japanese speaking coach assisting a student participating in a roleplay conversation.
 User Role: ${scenario.userRole}
 AI Partner Role: ${scenario.aiRole}
 User's Secret Goal / Mission Objective: ${scenario.goalDescription}
@@ -285,6 +313,18 @@ Recent Conversation History:
 ${recentTurns || 'Conversation is just starting. The user needs to initiate the interaction or make their first statement.'}
 
 Provide exactly 2 to 3 natural, highly authentic Japanese response options that the user could speak next to progress toward their secret goal. The suggestions should match ${targetLevel} complexity. Include full bracketed or ruby furigana (e.g. 予約[よやく]), clean English translations, and a concise strategic tip.`;
+      } else {
+        const persona = this.personaService.getPersona(personaId);
+        prompt = `You are an expert Japanese speaking coach assisting a student participating in a free open-ended Japanese conversation.
+AI Partner Persona: ${persona.name} (${persona.roleDescription})
+Conversation Type: Free open-ended casual conversation on everyday topics.
+Target Japanese Level: ${targetLevel}
+
+Recent Conversation History:
+${recentTurns || 'Conversation is just starting. The user needs to initiate the interaction or make their first statement.'}
+
+Provide exactly 2 to 3 natural, highly authentic Japanese response options that the user could speak next to smoothly continue or steer the conversational flow. The suggestions should match ${targetLevel} complexity. Include full bracketed or ruby furigana (e.g. 映画[えいが]), clean English translations, and a concise strategic tip.`;
+      }
 
       const responseSchema = {
         type: Type.ARRAY,
@@ -295,7 +335,7 @@ Provide exactly 2 to 3 natural, highly authentic Japanese response options that 
             japanese: { type: Type.STRING, description: 'Authentic Japanese response text in kanji/kana' },
             furigana: { type: Type.STRING, description: 'Japanese response with full bracketed furigana above kanji, e.g. 予約[よやく]したいのですが' },
             english: { type: Type.STRING, description: 'English translation of the suggested phrase' },
-            tip: { type: Type.STRING, description: 'Strategic tip explaining how this phrase helps accomplish the mission goal' },
+            tip: { type: Type.STRING, description: 'Strategic tip explaining how this phrase helps accomplish the goal or conversation flow' },
           },
           required: ['japanese', 'furigana', 'english', 'tip'],
         },
@@ -311,17 +351,17 @@ Provide exactly 2 to 3 natural, highly authentic Japanese response options that 
           },
         }),
         new Promise<any>((_, reject) =>
-          setTimeout(() => reject(new Error('Suggestions request timed out after 6000ms')), 6000)
+          setTimeout(() => reject(new Error('Suggestions request timed out after 12000ms')), 12000)
         ),
       ]);
 
       const jsonText = typeof response.text === 'function' ? (response.text as () => string)() : response.text;
-      if (!jsonText) return [];
+      if (!jsonText) return transcript.length === 0 ? this.getKickstartSuggestions() : [];
       const parsed = JSON.parse(jsonText);
-      return Array.isArray(parsed) ? parsed : [];
+      return Array.isArray(parsed) && parsed.length > 0 ? parsed : (transcript.length === 0 ? this.getKickstartSuggestions() : []);
     } catch (err) {
       console.error('[EvaluationService] Failed to generate speaking suggestions:', err);
-      return [];
+      return transcript.length === 0 ? this.getKickstartSuggestions() : [];
     }
   }
 }

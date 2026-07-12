@@ -255,6 +255,8 @@ describe('EvaluationService', () => {
       [
         { id: 't1', speaker: 'ai', text: 'いらっしゃいませ！何名様でしょうか？', timestamp: Date.now() - 5000 },
       ],
+      'N4',
+      'test-api-key',
       {
         id: 'izakaya_reserve',
         title: 'Reserving an Izakaya Table',
@@ -262,9 +264,7 @@ describe('EvaluationService', () => {
         goalDescription: 'Call an izakaya to reserve a table for 5 people for Saturday at 7pm under Tanaka.',
         userRole: 'Customer calling the izakaya',
         aiRole: 'Izakaya host taking reservations on the phone',
-      },
-      'N4',
-      'test-api-key'
+      }
     );
 
     expect(Array.isArray(suggestions)).toBe(true);
@@ -299,6 +299,7 @@ describe('EvaluationService', () => {
     const result = await service.generateSpeakingSuggestionsWithClient(
       mockAiClient as any,
       [{ id: 't1', speaker: 'ai', text: '何名様でしょうか？', timestamp: 1000 }],
+      'N4',
       {
         id: 'izakaya_reserve',
         title: 'Reserving an Izakaya Table',
@@ -306,8 +307,7 @@ describe('EvaluationService', () => {
         goalDescription: 'Reserve for 5.',
         userRole: 'Customer',
         aiRole: 'Host',
-      },
-      'N4'
+      }
     );
 
     expect(result).toHaveLength(1);
@@ -326,10 +326,10 @@ describe('EvaluationService', () => {
     );
   });
 
-  it('enforces a 6-second timeout and returns empty array if suggestions request times out', async () => {
+  it('enforces a 12-second timeout and returns empty array if mid-conversation suggestions request times out', async () => {
     vi.useFakeTimers();
     const service = new EvaluationService();
-    const mockGenerateContent = vi.fn().mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 10000)));
+    const mockGenerateContent = vi.fn().mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 15000)));
 
     const mockAiClient = {
       models: {
@@ -340,6 +340,7 @@ describe('EvaluationService', () => {
     const promise = service.generateSpeakingSuggestionsWithClient(
       mockAiClient as any,
       [{ id: 't1', speaker: 'ai', text: '何名様でしょうか？', timestamp: 1000 }],
+      'N4',
       {
         id: 'izakaya_reserve',
         title: 'Reserving an Izakaya Table',
@@ -347,15 +348,86 @@ describe('EvaluationService', () => {
         goalDescription: 'Reserve for 5.',
         userRole: 'Customer',
         aiRole: 'Host',
-      },
-      'N4'
+      }
     );
 
-    vi.advanceTimersByTime(6000);
+    vi.advanceTimersByTime(12000);
     const result = await promise;
     expect(result).toEqual([]);
     vi.useRealTimers();
   });
+
+  it('returns kickstart conversation opening suggestions if turn 0 request throws or times out', async () => {
+    vi.useFakeTimers();
+    const service = new EvaluationService();
+    const mockGenerateContent = vi.fn().mockImplementation(() => new Promise((_, reject) => setTimeout(() => reject(new Error('Network error')), 100)));
+
+    const mockAiClient = {
+      models: {
+        generateContent: mockGenerateContent,
+      },
+    };
+
+    const promise = service.generateSpeakingSuggestionsWithClient(
+      mockAiClient as any,
+      [], // Turn 0
+      'N4',
+      {
+        id: 'izakaya_reserve',
+        title: 'Reserving an Izakaya Table',
+        category: 'dining',
+        goalDescription: 'Reserve for 5.',
+        userRole: 'Customer',
+        aiRole: 'Host',
+      }
+    );
+
+    vi.advanceTimersByTime(200);
+    const result = await promise;
+    expect(result.length).toBeGreaterThanOrEqual(2);
+    expect(result[0].japanese).toContain('お話ししたいこと');
+    vi.useRealTimers();
+  });
+
+  it('generateSpeakingSuggestionsWithClient constructs a free-chat prompt when scenario is undefined', async () => {
+    const service = new EvaluationService();
+    const mockSuggestionsJson = JSON.stringify([
+      {
+        japanese: '最近、どんな映画を見ましたか？',
+        furigana: '最近[さいきん]、どんな映画[えいが]を見[み]ましたか？',
+        english: 'What kind of movies have you seen recently?',
+        tip: 'Ask a natural question to keep the casual chat going.',
+      },
+    ]);
+
+    const mockGenerateContent = vi.fn().mockResolvedValue({
+      text: () => mockSuggestionsJson,
+    });
+
+    const mockAiClient = {
+      models: {
+        generateContent: mockGenerateContent,
+      },
+    };
+
+    const result = await service.generateSpeakingSuggestionsWithClient(
+      mockAiClient as any,
+      [{ id: 't1', speaker: 'ai', text: 'こんにちは！元気ですか？', timestamp: 1000 }],
+      'N4',
+      undefined,
+      'casual_friend'
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0].japanese).toBe('最近、どんな映画を見ましたか？');
+    expect(mockGenerateContent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: 'gemini-3.5-flash',
+        contents: expect.stringContaining('Conversation Type: Free open-ended casual conversation on everyday topics.'),
+      })
+    );
+  });
 });
+
 
 

@@ -130,7 +130,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
       }
       setIsLoadingSuggestions(true);
       evalService
-        .generateSpeakingSuggestions(transcript, selectedScenario, defaultLevel, apiKey)
+        .generateSpeakingSuggestions(transcript, defaultLevel, apiKey, mode === 'missions' && selectedScenario ? selectedScenario : undefined, selectedPersona)
         .then((s) => setSuggestions(s))
         .finally(() => setIsLoadingSuggestions(false));
     }
@@ -155,7 +155,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
     lastSuggestedTurnIdRef.current = null;
     if (mode === 'missions' && selectedScenario && suggestionsMode === 'auto') {
       setIsLoadingSuggestions(true);
-      evalService.generateSpeakingSuggestions([], selectedScenario, defaultLevel, apiKey)
+      evalService.generateSpeakingSuggestions([], defaultLevel, apiKey, selectedScenario, selectedPersona)
         .then(s => setSuggestions(s))
         .finally(() => setIsLoadingSuggestions(false));
     }
@@ -191,7 +191,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
             if (!lastSuggestedTurnIdRef.current || lastSuggestedTurnIdRef.current !== baseId) {
               lastSuggestedTurnIdRef.current = baseId;
               setIsLoadingSuggestions(true);
-              evalService.generateSpeakingSuggestions(updatedTranscript, selectedScenario, defaultLevel, apiKey)
+              evalService.generateSpeakingSuggestions(updatedTranscript, defaultLevel, apiKey, selectedScenario, selectedPersona)
                 .then(s => setSuggestions(s))
                 .finally(() => setIsLoadingSuggestions(false));
             }
@@ -278,10 +278,10 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
   };
 
   const handleFetchManualSuggestions = async () => {
-    if (!selectedScenario) return;
+    if (mode === 'missions' && !selectedScenario) return;
     setIsLoadingSuggestions(true);
     try {
-      const s = await evalService.generateSpeakingSuggestions(transcript, selectedScenario, defaultLevel, apiKey);
+      const s = await evalService.generateSpeakingSuggestions(transcript, defaultLevel, apiKey, mode === 'missions' && selectedScenario ? selectedScenario : undefined, selectedPersona);
       setSuggestions(s);
     } finally {
       setIsLoadingSuggestions(false);
