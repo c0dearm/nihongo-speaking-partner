@@ -156,4 +156,37 @@ describe('LivePartnerView', () => {
       );
     });
   });
+
+  it('allows switching to Goal-Oriented Roleplay Missions, selecting a mission, and starting with scenario constraints', async () => {
+    render(
+      <SettingsProvider>
+        <LivePartnerView repository={repo} />
+      </SettingsProvider>
+    );
+
+    const modeBtn = screen.getByRole('button', { name: /Goal-Oriented Roleplay Missions/i });
+    fireEvent.click(modeBtn);
+
+    const cards = await screen.findAllByText(/Reserving an Izakaya Table/i);
+    expect(cards.length).toBeGreaterThan(0);
+    fireEvent.click(cards[0]);
+
+    expect(await screen.findByText(/Current Mission Goal/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Customer calling the izakaya/i)[0]).toBeInTheDocument();
+
+    const startBtn = screen.getByText(/Start Live Roleplay Mission/i);
+    fireEvent.click(startBtn);
+
+    await waitFor(() => {
+      expect(mockConnect).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(String),
+        expect.any(String),
+        expect.objectContaining({
+          title: 'Reserving an Izakaya Table',
+          goalDescription: expect.stringContaining('Call an izakaya to reserve a table for 5 people'),
+        })
+      );
+    });
+  });
 });

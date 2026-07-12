@@ -6,9 +6,10 @@ import {
   DrillPrompt,
   UserStatsRecord,
   ExportDataPayload,
+  RoleplayScenario,
 } from '../../types';
 
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 export class StorageRepository {
   private dbPromise: Promise<IDBPDatabase>;
@@ -32,6 +33,9 @@ export class StorageRepository {
         if (!db.objectStoreNames.contains('custom_drills')) {
           db.createObjectStore('custom_drills', { keyPath: 'id' });
         }
+        if (!db.objectStoreNames.contains('custom_scenarios')) {
+          db.createObjectStore('custom_scenarios', { keyPath: 'id' });
+        }
         if (!db.objectStoreNames.contains('user_stats')) {
           db.createObjectStore('user_stats');
         }
@@ -41,6 +45,10 @@ export class StorageRepository {
 
   async init(): Promise<void> {
     await this.dbPromise;
+  }
+
+  async initialize(): Promise<void> {
+    await this.init();
   }
 
   // Sessions CRUD
@@ -76,6 +84,17 @@ export class StorageRepository {
   async getCustomDrills(): Promise<DrillPrompt[]> {
     const db = await this.dbPromise;
     return db.getAll('custom_drills');
+  }
+
+  // Custom Scenarios CRUD
+  async saveCustomScenario(scenario: RoleplayScenario): Promise<void> {
+    const db = await this.dbPromise;
+    await db.put('custom_scenarios', scenario);
+  }
+
+  async getCustomScenarios(): Promise<RoleplayScenario[]> {
+    const db = await this.dbPromise;
+    return db.getAll('custom_scenarios');
   }
 
   // Notebook CRUD

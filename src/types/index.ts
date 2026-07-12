@@ -51,6 +51,22 @@ export interface SessionReport {
   topGrammarCorrections: GrammarCorrection[];
   naturalPhrasingTips: string[];
   estimatedLevel: JLPTLevel;
+  goalVerdict?: {
+    status: 'ACHIEVED' | 'PARTIALLY_ACHIEVED' | 'MISSED';
+    analysis: string;
+  };
+}
+
+export interface RoleplayScenario {
+  id: string;
+  title: string;
+  jlptLevel: JLPTLevel;
+  category: 'dining' | 'travel' | 'business' | 'daily_life' | 'emergency';
+  goalDescription: string;
+  userRole: string;
+  aiRole: string;
+  aiPromptContext?: string;
+  isCustom?: boolean;
 }
 
 export interface SessionRecord {

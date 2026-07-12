@@ -24,4 +24,19 @@ describe('PersonaService', () => {
     expect(instruction).toContain('Sayuri');
     expect(instruction).toContain('TARGET JLPT LEVEL: N3');
   });
+
+  it('injects roleplay mission goal and roles when a scenario is provided', () => {
+    const instruction = service.buildSystemInstruction('casual_friend', 'N4', undefined, {
+      id: 'n4-izakaya',
+      title: 'Reserving an Izakaya Table',
+      jlptLevel: 'N4',
+      category: 'dining',
+      goalDescription: 'Reserve a table for 5 people for Saturday at 7pm under Tanaka.',
+      userRole: 'Customer calling the izakaya',
+      aiRole: 'Izakaya Host (Polite desu-masu)',
+    });
+    expect(instruction).toContain('You are roleplaying as: Izakaya Host (Polite desu-masu)');
+    expect(instruction).toContain('The user is roleplaying as: Customer calling the izakaya');
+    expect(instruction).toContain('The user\'s secret goal for this conversation is: Reserve a table for 5 people for Saturday at 7pm under Tanaka.');
+  });
 });

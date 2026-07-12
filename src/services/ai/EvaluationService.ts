@@ -4,6 +4,7 @@ import {
   JLPTLevel,
   SessionReport,
   SpeakingAssessment,
+  RoleplayScenario,
 } from '../../types';
 
 export class EvaluationService {
@@ -104,26 +105,70 @@ Provide a detailed structured speaking assessment with scores (0-100), natural n
   async generateSessionReport(
     transcript: ConversationTurn[],
     jlptLevel: JLPTLevel,
-    apiKey: string
+    apiKey: string,
+    scenario?: RoleplayScenario
   ): Promise<SessionReport> {
     const ai = this.getClient(apiKey);
-    return this.generateSessionReportWithClient(ai, transcript, jlptLevel);
+    return this.generateSessionReportWithClient(ai, transcript, jlptLevel, scenario);
   }
 
   async generateSessionReportWithClient(
     ai: GoogleGenAI,
     transcript: ConversationTurn[],
-    jlptLevel: JLPTLevel
+    jlptLevel: JLPTLevel,
+    scenario?: RoleplayScenario
   ): Promise<SessionReport> {
     const transcriptText = transcript
       .map((t) => `[${t.speaker.toUpperCase()}]: ${t.text}`)
       .join('\n');
 
-    const prompt = `Analyze this Japanese conversation transcript for a student targeting JLPT ${jlptLevel}.
+    let prompt = `Analyze this Japanese conversation transcript for a student targeting JLPT ${jlptLevel}.
 Transcript:
 ${transcriptText}
 
 Provide an executive session feedback summary, top 3 grammar corrections from the user's speech, natural phrasing tips, and estimated JLPT level.`;
+
+    if (scenario) {
+      prompt += `\n\nSECRET CONVERSATION GOAL: ${scenario.goalDescription}
+The user was playing: "${scenario.userRole}" and the AI was playing: "${scenario.aiRole}".
+Evaluate whether the user successfully communicated all requirements of their secret goal across the multi-turn dialogue. Provide a goal verdict status (ACHIEVED, PARTIALLY_ACHIEVED, or MISSED) and detailed goal analysis.`;
+    }
+
+    const properties: Record<string, any> = {
+      summary: { type: Type.STRING },
+      topGrammarCorrections: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            originalPart: { type: Type.STRING },
+            correctedPart: { type: Type.STRING },
+            explanation: { type: Type.STRING },
+            jlptLevel: { type: Type.STRING },
+          },
+          required: ['originalPart', 'correctedPart', 'explanation', 'jlptLevel'],
+        },
+      },
+      naturalPhrasingTips: {
+        type: Type.ARRAY,
+        items: { type: Type.STRING },
+      },
+      estimatedLevel: { type: Type.STRING },
+    };
+
+    const required = ['summary', 'topGrammarCorrections', 'naturalPhrasingTips', 'estimatedLevel'];
+
+    if (scenario) {
+      properties.goalVerdict = {
+        type: Type.OBJECT,
+        properties: {
+          status: { type: Type.STRING },
+          analysis: { type: Type.STRING },
+        },
+        required: ['status', 'analysis'],
+      };
+      required.push('goalVerdict');
+    }
 
     const response = await ai.models.generateContent({
       model: 'gemini-3.5-flash',
@@ -132,28 +177,8 @@ Provide an executive session feedback summary, top 3 grammar corrections from th
         responseMimeType: 'application/json',
         responseSchema: {
           type: Type.OBJECT,
-          properties: {
-            summary: { type: Type.STRING },
-            topGrammarCorrections: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  originalPart: { type: Type.STRING },
-                  correctedPart: { type: Type.STRING },
-                  explanation: { type: Type.STRING },
-                  jlptLevel: { type: Type.STRING },
-                },
-                required: ['originalPart', 'correctedPart', 'explanation', 'jlptLevel'],
-              },
-            },
-            naturalPhrasingTips: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING },
-            },
-            estimatedLevel: { type: Type.STRING },
-          },
-          required: ['summary', 'topGrammarCorrections', 'naturalPhrasingTips', 'estimatedLevel'],
+          properties,
+          required,
         },
       },
     });

@@ -3,11 +3,13 @@ import { StorageRepository } from '../../services/storage/StorageRepository';
 import { PersonaService } from '../../services/persona/PersonaService';
 import { EvaluationService } from '../../services/ai/EvaluationService';
 import { LiveAudioClient } from '../../services/ai/LiveAudioClient';
-import { PersonaId, ConversationTurn, SessionReport, GrammarCorrection } from '../../types';
+import { RoleplayScenarioService } from '../../services/scenarios/RoleplayScenarioService';
+import { PersonaId, ConversationTurn, SessionReport, GrammarCorrection, RoleplayScenario } from '../../types';
 import { useSettings } from '../../context/SettingsContext';
 import { renderFurigana } from '../../utils/furigana';
 import { WaveformVisualizer } from './WaveformVisualizer';
-import { Mic, PhoneOff, Sparkles, BookPlus, MessageSquare, X } from 'lucide-react';
+import { CreateCustomScenarioModal } from './CreateCustomScenarioModal';
+import { Mic, PhoneOff, Sparkles, BookPlus, MessageSquare, X, Target, Plus, MessageCircle } from 'lucide-react';
 
 interface LivePartnerViewProps {
   repository: StorageRepository;
@@ -15,7 +17,12 @@ interface LivePartnerViewProps {
 
 export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) => {
   const { apiKey, defaultLevel, furiganaEnabled, setFuriganaEnabled } = useSettings();
+  const [mode, setMode] = useState<'free' | 'missions'>('free');
   const [selectedPersona, setSelectedPersona] = useState<PersonaId>('casual_friend');
+  const [scenarios, setScenarios] = useState<RoleplayScenario[]>([]);
+  const [selectedScenario, setSelectedScenario] = useState<RoleplayScenario | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+
   const [isConnected, setIsConnected] = useState(false);
   const [transcript, setTranscript] = useState<ConversationTurn[]>([]);
   const [rmsLevels, setRmsLevels] = useState({ inputRms: 0, outputRms: 0 });
@@ -27,6 +34,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
 
   const personaService = new PersonaService();
   const evalService = new EvaluationService();
+  const scenarioService = new RoleplayScenarioService(repository);
   const clientRef = useRef<LiveAudioClient | null>(null);
   const sessionStartTimeRef = useRef<number>(Date.now());
   const currentSessionIdRef = useRef<string>('sess-' + Date.now());
@@ -38,6 +46,17 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
       clientRef.current?.disconnect();
     };
   }, []);
+
+  useEffect(() => {
+    const fetchScenarios = async () => {
+      const list = await scenarioService.getScenariosByLevel(defaultLevel);
+      setScenarios(list);
+      if (list.length > 0 && !selectedScenario) {
+        setSelectedScenario(list[0]);
+      }
+    };
+    fetchScenarios();
+  }, [defaultLevel, repository]);
 
   useEffect(() => {
     if (!isConnected) {
@@ -76,6 +95,11 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
     }
     const client = clientRef.current;
     if (!client) return;
+
+    if (mode === 'missions' && !selectedScenario) {
+      alert('Please select a Roleplay Mission first.');
+      return;
+    }
 
     setTranscript([]);
     setReport(null);
@@ -141,9 +165,18 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
     });
 
     try {
-      await client.connect(selectedPersona, defaultLevel, apiKey);
+      await client.connect(
+        selectedPersona,
+        defaultLevel,
+        apiKey,
+        mode === 'missions' && selectedScenario ? selectedScenario : undefined
+      );
       setIsConnected(true);
-      setStatusMessage('🟢 Connected & Streaming Microphone (16kHz PCM). Speak now!');
+      setStatusMessage(
+        mode === 'missions' && selectedScenario
+          ? `🟢 Connected! Roleplay: "${selectedScenario.title}". Speak Japanese to achieve your goal!`
+          : '🟢 Connected & Streaming Microphone (16kHz PCM). Speak now!'
+      );
     } catch (err: any) {
       console.error(err);
       setStatusMessage(`⚠️ Connection failed: ${err?.message || err}`);
@@ -171,7 +204,12 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
     if (transcript.length === 0 || !apiKey) return;
     setGeneratingReport(true);
     try {
-      const rep = await evalService.generateSessionReport(transcript, defaultLevel, apiKey);
+      const rep = await evalService.generateSessionReport(
+        transcript,
+        defaultLevel,
+        apiKey,
+        mode === 'missions' && selectedScenario ? selectedScenario : undefined
+      );
       setReport(rep);
       setShowReportModal(true);
 
@@ -212,75 +250,174 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
 
   return (
     <div className="max-w-5xl mx-auto py-8 px-4 space-y-8 relative">
-      <div>
-        <h2 className="text-2xl font-bold text-slate-100">Live Conversation Partner Studio</h2>
-        <p className="text-sm text-slate-400">
-          Ultra-low-latency voice conversation roleplay powered by Gemini Live API WebSockets.
-        </p>
-      </div>
+      <div className="flex items-start justify-between flex-wrap gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-100">Live Conversation Partner Studio</h2>
+          <p className="text-sm text-slate-400">
+            Ultra-low-latency voice conversation and goal-oriented roleplay missions via Gemini Live API.
+          </p>
+        </div>
 
-      <div>
-        <h3 className="text-sm font-semibold text-slate-400 mb-3">Choose Your Conversation Partner</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {personas.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              disabled={isConnected}
-              onClick={() => setSelectedPersona(p.id)}
-              className={`p-4 rounded-xl border text-left transition-all ${
-                selectedPersona === p.id
-                  ? 'bg-indigo-950/40 border-indigo-500'
-                  : 'bg-slate-900 border-slate-800 hover:border-slate-700'
-              }`}
-            >
-              <p className="font-semibold text-slate-100">{p.name}</p>
-              <p className="text-xs text-indigo-400 mt-0.5">{p.speechRegister}</p>
-              <p className="text-xs text-slate-400 mt-2">{p.roleDescription}</p>
-            </button>
-          ))}
+        <div className="flex bg-slate-900 border border-slate-800 rounded-xl p-1 gap-1">
+          <button
+            type="button"
+            disabled={isConnected}
+            onClick={() => setMode('free')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+              mode === 'free'
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <MessageCircle className="w-4 h-4" />
+            Free Open-Ended Chat
+          </button>
+          <button
+            type="button"
+            disabled={isConnected}
+            onClick={() => setMode('missions')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+              mode === 'missions'
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Target className="w-4 h-4" />
+            Goal-Oriented Roleplay Missions
+          </button>
         </div>
       </div>
+
+      {mode === 'free' ? (
+        <div>
+          <h3 className="text-sm font-semibold text-slate-400 mb-3">Choose Your Conversation Partner</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {personas.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                disabled={isConnected}
+                onClick={() => setSelectedPersona(p.id)}
+                className={`p-4 rounded-xl border text-left transition-all ${
+                  selectedPersona === p.id
+                    ? 'bg-indigo-950/40 border-indigo-500'
+                    : 'bg-slate-900 border-slate-800 hover:border-slate-700'
+                }`}
+              >
+                <p className="font-semibold text-slate-100">{p.name}</p>
+                <p className="text-xs text-indigo-400 mt-0.5">{p.speechRegister}</p>
+                <p className="text-xs text-slate-400 mt-2">{p.roleDescription}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-slate-400">Choose Your Roleplay Mission ({defaultLevel})</h3>
+            <button
+              type="button"
+              disabled={isConnected}
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-900/60 hover:bg-indigo-800/80 text-indigo-300 border border-indigo-500/30 text-xs font-semibold"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Create Custom Mission
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {scenarios.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                disabled={isConnected}
+                onClick={() => setSelectedScenario(s)}
+                className={`p-4 rounded-xl border text-left transition-all ${
+                  selectedScenario?.id === s.id
+                    ? 'bg-indigo-950/40 border-indigo-500'
+                    : 'bg-slate-900 border-slate-800 hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded bg-indigo-950 text-indigo-400 border border-indigo-500/30">
+                    {s.jlptLevel}
+                  </span>
+                  <span className="text-xs text-slate-400 uppercase">{s.category}</span>
+                </div>
+                <p className="font-semibold text-slate-100 mt-1">{s.title}</p>
+                <p className="text-xs text-slate-400 mt-1.5 line-clamp-2">{s.goalDescription}</p>
+                <div className="mt-3 pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-indigo-300 font-mono">
+                  <span>You: {s.userRole}</span>
+                  <span>AI: {s.aiRole}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Live Mission HUD when active */}
+      {mode === 'missions' && selectedScenario && (
+        <div className="bg-indigo-950/30 border border-indigo-500/40 rounded-xl p-5 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Target className="w-4 h-4 text-indigo-400" />
+              <span className="text-xs font-bold uppercase tracking-wider text-indigo-400">Current Mission Goal</span>
+            </div>
+            <span className="text-xs text-slate-400 font-mono">{selectedScenario.jlptLevel} • {selectedScenario.title}</span>
+          </div>
+          <p className="text-sm font-semibold text-slate-100 leading-relaxed">{selectedScenario.goalDescription}</p>
+          <div className="flex items-center gap-4 text-xs text-slate-400 pt-1 border-t border-indigo-500/20">
+            <span><strong>Your Role:</strong> {selectedScenario.userRole}</span>
+            <span><strong>Partner Role:</strong> {selectedScenario.aiRole}</span>
+          </div>
+        </div>
+      )}
 
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 flex flex-col items-center justify-center space-y-6">
         <div className="w-full max-w-lg px-4 py-2 rounded-lg bg-slate-950/80 border border-slate-800 text-center text-xs font-mono text-slate-300">
-          Status: <span className={statusMessage.startsWith('⚠️') ? 'text-amber-400 font-bold' : 'text-indigo-400'}>{statusMessage}</span>
+          Status: <span className="text-indigo-400">{statusMessage}</span>
         </div>
 
-        <WaveformVisualizer
-          inputRms={rmsLevels.inputRms}
-          outputRms={rmsLevels.outputRms}
-          isActive={isConnected}
-        />
+        {isConnected ? (
+          <div className="flex flex-col items-center gap-6 w-full max-w-md">
+            <div className="w-full bg-slate-950 p-4 rounded-xl border border-indigo-500/30 shadow-inner flex flex-col items-center">
+              <span className="text-xs font-semibold text-indigo-400 mb-2 uppercase tracking-wider">
+                Real-Time Audio Stream (16kHz / 24kHz PCM)
+              </span>
+              <WaveformVisualizer inputRms={rmsLevels.inputRms} outputRms={rmsLevels.outputRms} isActive={isConnected} />
+            </div>
 
-        {!isConnected ? (
+            <div className="flex items-center gap-4">
+              <button
+                type="button"
+                onClick={() => setShowDrawer(true)}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium transition-all"
+              >
+                <MessageSquare className="w-4 h-4 text-indigo-400" />
+                Transcript Drawer ({transcript.length})
+              </button>
+
+              <button
+                type="button"
+                onClick={endSession}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold shadow-lg shadow-rose-600/30 transition-all"
+              >
+                <PhoneOff className="w-4 h-4" />
+                End Conversation
+              </button>
+            </div>
+          </div>
+        ) : (
           <button
             type="button"
             onClick={startSession}
             className="flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold shadow-lg shadow-indigo-600/30 transition-all"
           >
             <Mic className="w-5 h-5" />
-            Start Live Conversation
+            {mode === 'missions' ? 'Start Live Roleplay Mission' : 'Start Live Conversation'}
           </button>
-        ) : (
-          <div className="flex items-center gap-4">
-            <button
-              type="button"
-              onClick={endSession}
-              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold transition-all"
-            >
-              <PhoneOff className="w-5 h-5" />
-              End Conversation
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowDrawer(true)}
-              className="flex items-center gap-2 px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold transition-all"
-            >
-              <MessageSquare className="w-5 h-5" />
-              Transcript Drawer
-            </button>
-          </div>
         )}
       </div>
 
@@ -496,6 +633,18 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
             </div>
           </div>
         </div>
+      )}
+
+      {showCreateModal && (
+        <CreateCustomScenarioModal
+          onClose={() => setShowCreateModal(false)}
+          onCreate={async (scenario) => {
+            await scenarioService.createCustomScenario(scenario);
+            const list = await scenarioService.getScenariosByLevel(defaultLevel);
+            setScenarios(list);
+            setSelectedScenario(scenario);
+          }}
+        />
       )}
     </div>
   );

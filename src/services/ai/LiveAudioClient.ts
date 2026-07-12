@@ -1,7 +1,7 @@
 import { AudioCapture } from '../audio/AudioCapture';
 import { AudioPlayer } from '../audio/AudioPlayer';
 import { PersonaService } from '../persona/PersonaService';
-import { JLPTLevel, PersonaId } from '../../types';
+import { JLPTLevel, PersonaId, RoleplayScenario } from '../../types';
 
 export interface TurnEvent {
   speaker: 'user' | 'ai';
@@ -35,14 +35,16 @@ export class LiveAudioClient {
     };
   }
 
-  async connect(personaId: PersonaId, jlptLevel: JLPTLevel, apiKey: string): Promise<void> {
+  async connect(personaId: PersonaId, jlptLevel: JLPTLevel, apiKey: string, scenario?: RoleplayScenario): Promise<void> {
     if (this.isConnected) {
       this.disconnect();
     }
 
     const systemInstructionText = this.personaService.buildSystemInstruction(
       personaId,
-      jlptLevel
+      jlptLevel,
+      undefined,
+      scenario
     );
 
     const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${apiKey}`;

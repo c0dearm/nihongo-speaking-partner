@@ -195,4 +195,57 @@ describe('EvaluationService', () => {
     expect(result.summary).toBe('Excellent session');
     expect(spy).toHaveBeenCalled();
   });
+
+  it('generateSessionReportWithClient requests goalVerdict when a roleplay scenario is passed', async () => {
+    const mockReportJson = JSON.stringify({
+      summary: 'Good negotiation attempt.',
+      topGrammarCorrections: [],
+      naturalPhrasingTips: [],
+      estimatedLevel: 'N4',
+      goalVerdict: {
+        status: 'ACHIEVED',
+        analysis: 'You successfully stated the reservation time and party size.',
+      },
+    });
+
+    const mockGenerateContent = vi.fn().mockResolvedValue({
+      text: () => mockReportJson,
+    });
+
+    const mockAiClient = {
+      models: {
+        generateContent: mockGenerateContent,
+      },
+    };
+
+    const result = await service.generateSessionReportWithClient(
+      mockAiClient as any,
+      [{ id: 't1', speaker: 'user', text: '予約をお願いします。', timestamp: 1000 }],
+      'N4',
+      {
+        id: 'n4-izakaya',
+        title: 'Izakaya Reservation',
+        jlptLevel: 'N4',
+        category: 'dining',
+        goalDescription: 'Reserve a table for 5 for Saturday at 7 PM.',
+        userRole: 'Customer',
+        aiRole: 'Host',
+      }
+    );
+
+    expect(result.goalVerdict?.status).toBe('ACHIEVED');
+    expect(result.goalVerdict?.analysis).toContain('successfully stated');
+    expect(mockGenerateContent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contents: expect.stringContaining('SECRET CONVERSATION GOAL: Reserve a table for 5 for Saturday at 7 PM.'),
+        config: expect.objectContaining({
+          responseSchema: expect.objectContaining({
+            properties: expect.objectContaining({
+              goalVerdict: expect.any(Object),
+            }),
+          }),
+        }),
+      })
+    );
+  });
 });
