@@ -251,4 +251,64 @@ describe('StorageRepository', () => {
     expect(await repo2.getCustomDrills()).toEqual([customDrill]);
     expect(await repo2.getUserStats()).toEqual(stats);
   });
+
+  it('clears user history while preserving dailyGoalMinutes and custom scenarios', async () => {
+    // 1. Save a session, a notebook item, custom scenario, and update user stats
+    await repo.saveSession({
+      id: 's-clear-test',
+      timestamp: Date.now(),
+      durationSeconds: 120,
+      turnCount: 4,
+      transcript: [],
+      scenarioId: 'izakaya_reserve',
+    } as any);
+
+    await repo.saveNotebookItem({
+      id: 'n-clear-test',
+      createdAt: Date.now(),
+      category: 'vocabulary',
+      jlptLevel: 'N4',
+      originalText: '本',
+      correctedText: '本',
+      explanation: 'Book',
+      mastered: false,
+    } as any);
+
+    await repo.saveCustomScenario({
+      id: 'custom-scen-1',
+      title: 'My Custom Mission',
+      category: 'dining',
+      goalDescription: 'Order coffee.',
+      userRole: 'Customer',
+      aiRole: 'Barista',
+    });
+
+    await repo.updateUserStats({
+      dailyStreak: 7,
+      lastPracticeDate: '2026-07-12',
+      totalMinutesPracticed: 45,
+      dailyGoalMinutes: 30, // custom user setting to preserve
+    });
+
+    // 2. Execute clearUserHistory
+    await repo.clearUserHistory();
+
+    // 3. Verify history stores are cleared
+    const sessions = await repo.getSessions();
+    expect(sessions).toHaveLength(0);
+
+    const notebookItems = await repo.getNotebookItems();
+    expect(notebookItems).toHaveLength(0);
+
+    // 4. Verify user stats reset streak/minutes but preserved dailyGoalMinutes
+    const stats = await repo.getUserStats();
+    expect(stats.dailyStreak).toBe(0);
+    expect(stats.totalMinutesPracticed).toBe(0);
+    expect(stats.lastPracticeDate).toBe('');
+    expect(stats.dailyGoalMinutes).toBe(30);
+
+    // 5. Verify custom scenarios remain untouched
+    const scenarios = await repo.getCustomScenarios();
+    expect(scenarios.some(s => s.id === 'custom-scen-1')).toBe(true);
+  });
 });

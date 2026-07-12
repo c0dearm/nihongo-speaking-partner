@@ -136,6 +136,29 @@ export class StorageRepository {
     await db.put('user_stats', stats, 'current');
   }
 
+  async clearUserHistory(): Promise<void> {
+    const db = await this.dbPromise;
+    const currentStats = await this.getUserStats();
+
+    const tx = db.transaction(
+      ['sessions', 'drills_progress', 'notebook_items', 'user_stats'],
+      'readwrite'
+    );
+
+    await tx.objectStore('sessions').clear();
+    await tx.objectStore('drills_progress').clear();
+    await tx.objectStore('notebook_items').clear();
+
+    const resetStats: UserStatsRecord = {
+      dailyStreak: 0,
+      lastPracticeDate: '',
+      totalMinutesPracticed: 0,
+      dailyGoalMinutes: currentStats.dailyGoalMinutes,
+    };
+    await tx.objectStore('user_stats').put(resetStats, 'current');
+    await tx.done;
+  }
+
   // Export / Import
   async exportAllData(): Promise<ExportDataPayload> {
     const [sessions, drillsProgress, notebookItems, customDrills, userStats] = await Promise.all([
