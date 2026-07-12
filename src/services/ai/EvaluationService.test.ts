@@ -249,7 +249,7 @@ describe('EvaluationService', () => {
     );
   });
 
-  it('generates turn-by-turn speaking suggestions for a roleplay mission using gemini-3.5-flash', async () => {
+  it('generates turn-by-turn speaking suggestions for a roleplay mission when using test-api-key', async () => {
     const service = new EvaluationService();
     const suggestions = await service.generateSpeakingSuggestions(
       [
@@ -292,7 +292,7 @@ describe('EvaluationService', () => {
     expect(suggestions[1].japanese).toBe('週末はいつもどのように過ごしていますか？');
   });
 
-  it('generateSpeakingSuggestions calls generateSpeakingSuggestionsWithClient with structured schema when using real apiKey', async () => {
+  it('generates roleplay speaking suggestions with furigana using gemini-3.1-flash-lite-preview and strict JSON schema', async () => {
     const service = new EvaluationService();
     const mockSuggestionsJson = JSON.stringify([
       {
@@ -331,7 +331,7 @@ describe('EvaluationService', () => {
     expect(result[0].japanese).toBe('予約をお願いします。');
     expect(mockGenerateContent).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: 'gemini-3.5-flash',
+        model: 'gemini-3.1-flash-lite-preview',
         contents: expect.stringContaining('AI Partner: 何名様でしょうか？'),
         config: expect.objectContaining({
           responseMimeType: 'application/json',
@@ -439,7 +439,7 @@ describe('EvaluationService', () => {
     expect(result[0].japanese).toBe('最近、どんな映画を見ましたか？');
     expect(mockGenerateContent).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: 'gemini-3.5-flash',
+        model: 'gemini-3.1-flash-lite-preview',
         contents: expect.stringContaining('Conversation Type: Free open-ended casual conversation on everyday topics.'),
       })
     );

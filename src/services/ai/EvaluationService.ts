@@ -367,7 +367,7 @@ Provide exactly 2 to 3 natural, highly authentic Japanese response options that 
 
       const response = await Promise.race([
         ai.models.generateContent({
-          model: 'gemini-3.5-flash',
+          model: 'gemini-3.1-flash-lite-preview',
           contents: prompt,
           config: {
             responseMimeType: 'application/json',
