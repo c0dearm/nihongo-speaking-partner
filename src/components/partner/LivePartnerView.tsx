@@ -345,47 +345,49 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
 
   return (
     <div className="max-w-5xl mx-auto py-8 px-4 space-y-8 relative">
-      <div className="flex items-start justify-between flex-wrap gap-4">
+      <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
         <div>
           <h2 className="text-2xl font-bold text-slate-100">Live Conversation Partner Studio</h2>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-slate-400 mt-1">
             Ultra-low-latency voice conversation and goal-oriented roleplay missions via Gemini Live API.
           </p>
         </div>
 
-        <div className="flex items-center flex-wrap gap-3">
-          <button
-            type="button"
-            disabled={isConnected}
-            title={isConnected ? "Mode change will apply on next connection" : ""}
-            onClick={() => setAdaptationMode(adaptationMode === 'auto' ? 'rigid' : 'auto')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-              adaptationMode === 'auto'
-                ? 'bg-indigo-950/60 border-indigo-500/40 text-indigo-300 hover:bg-indigo-900/80'
-                : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
-            } disabled:opacity-50 disabled:cursor-not-allowed`}
-          >
-            {adaptationMode === 'auto' ? `🧠 Adaptive Mode: AUTO (${profile?.estimatedLevel || defaultLevel})` : `🔒 Rigid Mode: STRICT ${defaultLevel}`}
-          </button>
+        <div className="flex flex-col sm:flex-row sm:items-center flex-wrap gap-3 w-full md:w-auto">
+          <div className="flex items-center flex-wrap gap-2 w-full sm:w-auto">
+            <button
+              type="button"
+              disabled={isConnected}
+              title={isConnected ? "Mode change will apply on next connection" : ""}
+              onClick={() => setAdaptationMode(adaptationMode === 'auto' ? 'rigid' : 'auto')}
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold border transition-all flex-1 sm:flex-initial ${
+                adaptationMode === 'auto'
+                  ? 'bg-indigo-950/60 border-indigo-500/40 text-indigo-300 hover:bg-indigo-900/80'
+                  : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              {adaptationMode === 'auto' ? `🧠 Adaptive Mode: AUTO (${profile?.estimatedLevel || defaultLevel})` : `🔒 Rigid Mode: STRICT ${defaultLevel}`}
+            </button>
 
-          <button
-            type="button"
-            onClick={toggleSuggestionsMode}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-              suggestionsMode !== 'off'
-                ? 'bg-amber-950/40 border-amber-500/40 text-amber-300 hover:bg-amber-900/60'
-                : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            💡 Hints: {suggestionsMode.toUpperCase()}
-          </button>
+            <button
+              type="button"
+              onClick={toggleSuggestionsMode}
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold border transition-all flex-1 sm:flex-initial ${
+                suggestionsMode !== 'off'
+                  ? 'bg-amber-950/40 border-amber-500/40 text-amber-300 hover:bg-amber-900/60'
+                  : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              💡 Hints: {suggestionsMode.toUpperCase()}
+            </button>
+          </div>
 
-          <div className="flex bg-slate-900 border border-slate-800 rounded-xl p-1 gap-1">
+          <div className="flex flex-col sm:flex-row bg-slate-900 border border-slate-800 rounded-xl p-1 gap-1 w-full sm:w-auto">
             <button
               type="button"
               disabled={isConnected}
               onClick={() => setMode('missions')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 rounded-lg text-xs font-semibold transition-all w-full sm:w-auto ${
                 mode === 'missions'
                   ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
                   : 'text-slate-400 hover:text-slate-200'
@@ -398,7 +400,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
               type="button"
               disabled={isConnected}
               onClick={() => setMode('free')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 rounded-lg text-xs font-semibold transition-all w-full sm:w-auto ${
                 mode === 'free'
                   ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
                   : 'text-slate-400 hover:text-slate-200'
@@ -491,7 +493,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
             <span className="text-xs text-slate-400 font-mono">{selectedScenario.jlptLevel} • {selectedScenario.title}</span>
           </div>
           <p className="text-sm font-semibold text-slate-100 leading-relaxed">{selectedScenario.goalDescription}</p>
-          <div className="flex items-center gap-4 text-xs text-slate-400 pt-1 border-t border-indigo-500/20">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-4 text-xs text-slate-400 pt-2 border-t border-indigo-500/20">
             <span><strong>Your Role:</strong> {selectedScenario.userRole}</span>
             <span><strong>Partner Role:</strong> {selectedScenario.aiRole}</span>
           </div>
@@ -560,11 +562,11 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
               <WaveformVisualizer inputRms={rmsLevels.inputRms} outputRms={rmsLevels.outputRms} isActive={isConnected} />
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 w-full sm:w-auto max-w-md">
               <button
                 type="button"
                 onClick={() => setShowDrawer(true)}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium transition-all"
+                className="flex items-center justify-center gap-2 px-4 py-3 sm:py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium transition-all w-full sm:w-auto"
               >
                 <MessageSquare className="w-4 h-4 text-indigo-400" />
                 Transcript Drawer ({transcript.length})
@@ -573,7 +575,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
               <button
                 type="button"
                 onClick={endSession}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold shadow-lg shadow-rose-600/30 transition-all"
+                className="flex items-center justify-center gap-2 px-6 py-3 sm:py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold shadow-lg shadow-rose-600/30 transition-all w-full sm:w-auto"
               >
                 <PhoneOff className="w-4 h-4" />
                 End Conversation
