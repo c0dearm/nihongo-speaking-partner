@@ -196,6 +196,7 @@ Evaluate whether the user successfully communicated all requirements of their se
   }
 
   private static furiganaCache = new Map<string, string>();
+  private static inFlightFurigana = new Map<string, Promise<string>>();
 
   async generateFurigana(text: string, apiKey: string): Promise<string> {
     const ai = this.getClient(apiKey);
@@ -215,29 +216,39 @@ Evaluate whether the user successfully communicated all requirements of their se
       return EvaluationService.furiganaCache.get(trimmed)!;
     }
 
+    if (EvaluationService.inFlightFurigana.has(trimmed)) {
+      return EvaluationService.inFlightFurigana.get(trimmed)!;
+    }
+
     const prompt = `Add Japanese furigana readings to the following text using square bracket format where each kanji word is directly followed by its reading in square brackets, for example: 漢字[かんじ]を読む[よむ]. Only output the annotated text with square brackets, nothing else. Do not wrap output in markdown code blocks or quotes.
 Text to annotate: "${trimmed}"`;
 
-    try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.1-flash-lite-preview',
-        contents: prompt,
-        config: {
-          temperature: 0.1,
-          maxOutputTokens: 500,
-          thinkingConfig: { thinkingBudget: 0 },
-        } as any,
-      });
-      const raw = typeof response.text === 'function' ? (response.text as () => string)() : response.text;
-      let result = raw ? raw.trim() : text;
-      // Strip any markdown code blocks or backticks if returned by the model
-      result = result.replace(/^```(?:json|text)?\n?|\n?```$/gi, '').replace(/^`|`$/g, '').trim();
-      EvaluationService.furiganaCache.set(trimmed, result);
-      return result;
-    } catch (e) {
-      console.error('Failed to generate furigana:', e);
-      return text;
-    }
+    const promise = (async () => {
+      try {
+        const response = await ai.models.generateContent({
+          model: 'gemini-3.1-flash-lite-preview',
+          contents: prompt,
+          config: {
+            temperature: 0.1,
+            maxOutputTokens: 500,
+            thinkingConfig: { thinkingBudget: 0 },
+          } as any,
+        });
+        const raw = typeof response.text === 'function' ? (response.text as () => string)() : response.text;
+        let result = raw ? raw.trim() : text;
+        // Strip any markdown code blocks or backticks if returned by the model
+        result = result.replace(/^```[a-z0-9-_]*\n?|\n?```$/gi, '').replace(/^`|`$/g, '').trim();
+        EvaluationService.furiganaCache.set(trimmed, result);
+        return result;
+      } catch (e) {
+        console.error('Failed to generate furigana:', e);
+        return text;
+      } finally {
+        EvaluationService.inFlightFurigana.delete(trimmed);
+      }
+    })();
+    EvaluationService.inFlightFurigana.set(trimmed, promise);
+    return promise;
   }
 
   getKickstartSuggestions(): SpeakingSuggestion[] {

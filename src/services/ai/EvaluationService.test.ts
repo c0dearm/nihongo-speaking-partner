@@ -468,7 +468,35 @@ describe('EvaluationService', () => {
       })
     );
   });
+
+  it('deduplicates in-flight generateFuriganaWithClient requests for the same text', async () => {
+    const service = new EvaluationService();
+    let resolvePromise: (value: any) => void;
+    const delayedPromise = new Promise((resolve) => {
+      resolvePromise = resolve;
+    });
+
+    const mockAiClient = {
+      models: {
+        generateContent: vi.fn().mockImplementation(() => delayedPromise),
+      },
+    };
+
+    const p1 = service.generateFuriganaWithClient(mockAiClient as any, '漢字を勉強する');
+    const p2 = service.generateFuriganaWithClient(mockAiClient as any, '漢字を勉強する');
+
+    expect(mockAiClient.models.generateContent).toHaveBeenCalledTimes(1);
+
+    resolvePromise!({
+      text: '漢字[かんじ]を勉強[べんきょう]する',
+    });
+
+    const [res1, res2] = await Promise.all([p1, p2]);
+    expect(res1).toBe('漢字[かんじ]を勉強[べんきょう]する');
+    expect(res2).toBe('漢字[かんじ]を勉強[べんきょう]する');
+  });
 });
+
 
 
 

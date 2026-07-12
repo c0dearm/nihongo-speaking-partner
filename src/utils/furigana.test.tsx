@@ -47,4 +47,12 @@ describe('renderFurigana', () => {
     expect(ruby?.textContent).toContain('漢字');
     expect(ruby?.querySelector('rt')?.textContent).toBe('かんじ');
   });
+
+  it('does not wrap English parenthetical expressions in ruby tags when furigana is enabled', () => {
+    const { container } = render(<div>{renderFurigana('Model A (v2)', true)}</div>);
+    const rubies = container.querySelectorAll('ruby');
+    expect(rubies).toHaveLength(0);
+    expect(container.textContent).toBe('Model A (v2)');
+  });
 });
+

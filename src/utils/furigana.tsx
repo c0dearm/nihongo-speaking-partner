@@ -8,7 +8,7 @@ import React from 'react';
 export function renderFurigana(text: string | undefined, furiganaEnabled: boolean): React.ReactNode {
   if (!text) return null;
 
-  const regex = /([一-龯々〆ヵヶぁ-んァ-ンa-zA-Z0-9]+?)\s*[(（[［{｛<《]([ぁ-んァ-ンa-zA-Z0-9]+)[)）\]］}｝>》]/g;
+  const regex = /([一-龯々〆ヵヶぁ-んァ-ン]+?)\s*[(（[［{｛<《]([ぁ-んァ-ンa-zA-Z0-9]+)[)）\]］}｝>》]/g;
 
   if (!furiganaEnabled) {
     let clean = text.replace(/<ruby>(.*?)<rt>.*?<\/rt><\/ruby>/gi, '$1');

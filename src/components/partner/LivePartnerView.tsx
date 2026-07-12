@@ -96,8 +96,19 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
     if (!furiganaEnabled || !apiKey || transcript.length === 0) return;
     transcript.forEach((t, idx) => {
       const isDoneOrNotLatest = t.id.endsWith('-done') || idx < transcript.length - 1;
-      if (isDoneOrNotLatest && !t.furiganaText && t.text.trim() && !annotatingIdsRef.current.has(t.id)) {
+      const baseId = t.id.replace('-done', '');
+      if (
+        furiganaEnabled &&
+        apiKey &&
+        isDoneOrNotLatest &&
+        !t.furiganaText &&
+        t.text.trim() &&
+        !annotatingIdsRef.current.has(t.id) &&
+        !annotatingIdsRef.current.has(baseId)
+      ) {
         annotatingIdsRef.current.add(t.id);
+        annotatingIdsRef.current.add(baseId);
+        annotatingIdsRef.current.add(baseId + '-done');
         evalService.generateFurigana(t.text, apiKey).then((furigana) => {
           if (furigana && furigana !== t.text) {
             setTranscript((cur) =>
@@ -182,6 +193,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
           const last = prev[prev.length - 1];
           if (furiganaEnabled && apiKey && !last.furiganaText && last.text.trim() && !annotatingIdsRef.current.has(last.id)) {
             annotatingIdsRef.current.add(last.id);
+            annotatingIdsRef.current.add(last.id.replace('-done', '') + '-done');
             evalService.generateFurigana(last.text, apiKey).then((furigana) => {
               if (furigana && furigana !== last.text) {
                 setTranscript((cur) =>
