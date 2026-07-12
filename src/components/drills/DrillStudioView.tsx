@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { StorageRepository } from '../../services/storage/StorageRepository';
 import { DrillService } from '../../services/drills/DrillService';
 import { EvaluationService } from '../../services/ai/EvaluationService';
 import { DrillPrompt, JLPTLevel, SpeakingAssessment } from '../../types';
 import { useSettings } from '../../context/SettingsContext';
 import { CreateCustomDrillModal } from './CreateCustomDrillModal';
-import { Plus, Sparkles, BookPlus } from 'lucide-react';
+import { Plus, Sparkles, BookPlus, Mic, MicOff } from 'lucide-react';
 
 interface DrillStudioViewProps {
   repository: StorageRepository;
@@ -20,9 +20,63 @@ export const DrillStudioView: React.FC<DrillStudioViewProps> = ({ repository }) 
   const [evaluating, setEvaluating] = useState(false);
   const [assessment, setAssessment] = useState<SpeakingAssessment | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
 
   const drillService = new DrillService(repository);
   const evalService = new EvaluationService();
+
+  const toggleDictation = () => {
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const SpeechRecognitionClass = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognitionClass) {
+      alert('Your browser does not support the Web Speech API dictation. Please use your operating system dictation shortcut (e.g. Win+H or Cmd+Double-Tap Ctrl) or type manually.');
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognitionClass();
+      recognition.lang = 'ja-JP';
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      recognition.onresult = (event: any) => {
+        const transcript = Array.from(event.results)
+          .map((r: any) => r[0].transcript)
+          .join('');
+        setUserSpeechText(transcript);
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognition.start();
+      recognitionRef.current = recognition;
+      setIsListening(true);
+    } catch (err) {
+      console.error(err);
+      setIsListening(false);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, []);
 
   const loadDrills = async (level: JLPTLevel) => {
     const list = await drillService.getDrillsByLevel(level);
@@ -173,15 +227,38 @@ export const DrillStudioView: React.FC<DrillStudioViewProps> = ({ repository }) 
             {!assessment ? (
               <form onSubmit={handleEvaluate} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">
-                    Your Spoken Response (Type or dictate your spoken answer in Japanese)
-                  </label>
+                  <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                    <label className="block text-xs font-medium text-slate-400">
+                      Your Spoken Response (Dictate in Japanese or type below)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={toggleDictation}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        isListening
+                          ? 'bg-rose-600 hover:bg-rose-500 text-white animate-pulse shadow-lg shadow-rose-600/30'
+                          : 'bg-indigo-900/60 hover:bg-indigo-800/80 text-indigo-300 border border-indigo-500/30'
+                      }`}
+                    >
+                      {isListening ? (
+                        <>
+                          <MicOff className="w-3.5 h-3.5" />
+                          Stop Dictation (Listening...)
+                        </>
+                      ) : (
+                        <>
+                          <Mic className="w-3.5 h-3.5" />
+                          Dictate via Microphone (ja-JP)
+                        </>
+                      )}
+                    </button>
+                  </div>
                   <textarea
                     required
                     rows={3}
                     value={userSpeechText}
                     onChange={(e) => setUserSpeechText(e.target.value)}
-                    placeholder="e.g. すみません、でんしゃがおくれてしまい..."
+                    placeholder="Click 'Dictate via Microphone' and speak your answer in Japanese, or type here..."
                     className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-sm text-slate-200"
                   />
                 </div>
