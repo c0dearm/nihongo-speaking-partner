@@ -83,6 +83,7 @@ describe('LivePartnerView', () => {
         <LivePartnerView repository={repo} />
       </SettingsProvider>
     );
+    fireEvent.click(screen.getByRole('button', { name: /Free Open-Ended Chat/i }));
     expect(await screen.findByText(/Choose Your Conversation Partner/i)).toBeInTheDocument();
     expect(screen.getByText(/Start Live Conversation/i)).toBeInTheDocument();
   });
@@ -94,6 +95,7 @@ describe('LivePartnerView', () => {
       </SettingsProvider>
     );
 
+    fireEvent.click(screen.getByRole('button', { name: /Free Open-Ended Chat/i }));
     const startBtn = screen.getByText(/Start Live Conversation/i);
     fireEvent.click(startBtn);
 
@@ -117,6 +119,7 @@ describe('LivePartnerView', () => {
       </SettingsProvider>
     );
 
+    fireEvent.click(screen.getByRole('button', { name: /Free Open-Ended Chat/i }));
     const startBtn = screen.getByText(/Start Live Conversation/i);
     fireEvent.click(startBtn);
 
@@ -140,6 +143,7 @@ describe('LivePartnerView', () => {
       </SettingsProvider>
     );
 
+    fireEvent.click(screen.getByRole('button', { name: /Free Open-Ended Chat/i }));
     const startBtn = screen.getByText(/Start Live Conversation/i);
     fireEvent.click(startBtn);
 
@@ -184,6 +188,7 @@ describe('LivePartnerView', () => {
       </SettingsProvider>
     );
 
+    fireEvent.click(screen.getByRole('button', { name: /Free Open-Ended Chat/i }));
     const modeBtn = screen.getByRole('button', { name: /Goal-Oriented Roleplay Missions/i });
     fireEvent.click(modeBtn);
 
@@ -219,6 +224,7 @@ describe('LivePartnerView', () => {
       </SettingsProvider>
     );
 
+    fireEvent.click(screen.getByRole('button', { name: /Free Open-Ended Chat/i }));
     expect(screen.getByText(/Adaptive Mode: AUTO/i)).toBeInTheDocument();
 
     const startBtn = screen.getByText(/Start Live Conversation/i);
@@ -255,6 +261,8 @@ describe('LivePartnerView', () => {
         <LivePartnerView repository={repo} />
       </SettingsProvider>
     );
+
+    fireEvent.click(screen.getByRole('button', { name: /Free Open-Ended Chat/i }));
 
     // Before connecting, studio header chip should be enabled
     const headerChipBeforeConnect = screen.getByText(/Adaptive Mode: AUTO/i).closest('button')!;
@@ -447,7 +455,46 @@ describe('LivePartnerView', () => {
       expect(mockGenerateSpeakingSuggestions).toHaveBeenCalled();
     });
   });
+
+  it('defaults to Goal-Oriented Roleplay Missions upon opening the studio', async () => {
+    render(
+      <SettingsProvider>
+        <LivePartnerView repository={repo} />
+      </SettingsProvider>
+    );
+
+    // Should render mission selection deck by default
+    expect(await screen.findByText(/Reserving an Izakaya Table/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Goal-Oriented Roleplay Missions/i })).toHaveClass('bg-indigo-600');
+  });
+
+  it('renders speaking suggestions in Free Open-Ended Chat mode when turn completes', async () => {
+    render(
+      <SettingsProvider>
+        <LivePartnerView repository={repo} />
+      </SettingsProvider>
+    );
+
+    // Switch to Free Chat mode
+    fireEvent.click(screen.getByRole('button', { name: /Free Open-Ended Chat/i }));
+    fireEvent.click(screen.getByText(/Start Live Conversation/i));
+
+    await waitFor(() => {
+      expect(turnCallback).toBeDefined();
+    });
+
+    act(() => {
+      turnCallback?.({ id: 'free-turn-1', speaker: 'ai', text: 'こんにちは！何について話しましょうか？' });
+      turnCallback?.({ id: 'free-turn-1', speaker: 'ai', text: 'こんにちは！何について話しましょうか？', turnComplete: true });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/What You Could Say Next/i)).toBeInTheDocument();
+      expect(screen.getByText(/Excuse me, I would like to make a reservation/i)).toBeInTheDocument(); // mock suggestion string
+    });
+  });
 });
+
 
 
 

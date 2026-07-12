@@ -18,7 +18,7 @@ interface LivePartnerViewProps {
 
 export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) => {
   const { apiKey, defaultLevel, furiganaEnabled, setFuriganaEnabled, adaptationMode, setAdaptationMode, suggestionsMode, setSuggestionsMode } = useSettings();
-  const [mode, setMode] = useState<'free' | 'missions'>('free');
+  const [mode, setMode] = useState<'free' | 'missions'>('missions');
   const [selectedPersona, setSelectedPersona] = useState<PersonaId>('casual_friend');
   const [scenarios, setScenarios] = useState<RoleplayScenario[]>([]);
   const [selectedScenario, setSelectedScenario] = useState<RoleplayScenario | null>(null);
@@ -119,8 +119,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
       suggestionsMode === 'auto' &&
       prevMode !== 'auto' &&
       isConnected &&
-      mode === 'missions' &&
-      selectedScenario &&
+      (mode === 'free' || Boolean(selectedScenario)) &&
       suggestions.length === 0 &&
       !isLoadingSuggestions
     ) {
@@ -130,7 +129,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
       }
       setIsLoadingSuggestions(true);
       evalService
-        .generateSpeakingSuggestions(transcript, defaultLevel, apiKey, mode === 'missions' && selectedScenario ? selectedScenario : undefined, selectedPersona)
+        .generateSpeakingSuggestions(transcript, defaultLevel, apiKey, mode === 'missions' ? (selectedScenario || undefined) : undefined, selectedPersona)
         .then((s) => setSuggestions(s))
         .finally(() => setIsLoadingSuggestions(false));
     }
@@ -153,9 +152,9 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
     setReport(null);
     setSuggestions([]);
     lastSuggestedTurnIdRef.current = null;
-    if (mode === 'missions' && selectedScenario && suggestionsMode === 'auto') {
+    if ((mode === 'free' || Boolean(selectedScenario)) && suggestionsMode === 'auto') {
       setIsLoadingSuggestions(true);
-      evalService.generateSpeakingSuggestions([], defaultLevel, apiKey, selectedScenario, selectedPersona)
+      evalService.generateSpeakingSuggestions([], defaultLevel, apiKey, mode === 'missions' ? (selectedScenario || undefined) : undefined, selectedPersona)
         .then(s => setSuggestions(s))
         .finally(() => setIsLoadingSuggestions(false));
     }
@@ -187,11 +186,11 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
           }
           const baseId = last.id.replace('-done', '');
           const updatedTranscript = [...prev.slice(0, -1), { ...last, id: baseId + '-done' }];
-          if (mode === 'missions' && selectedScenario && turn.speaker === 'ai' && suggestionsMode === 'auto') {
+          if ((mode === 'free' || Boolean(selectedScenario)) && turn.speaker === 'ai' && suggestionsMode === 'auto') {
             if (!lastSuggestedTurnIdRef.current || lastSuggestedTurnIdRef.current !== baseId) {
               lastSuggestedTurnIdRef.current = baseId;
               setIsLoadingSuggestions(true);
-              evalService.generateSpeakingSuggestions(updatedTranscript, defaultLevel, apiKey, selectedScenario, selectedPersona)
+              evalService.generateSpeakingSuggestions(updatedTranscript, defaultLevel, apiKey, mode === 'missions' ? (selectedScenario || undefined) : undefined, selectedPersona)
                 .then(s => setSuggestions(s))
                 .finally(() => setIsLoadingSuggestions(false));
             }
@@ -281,7 +280,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
     if (mode === 'missions' && !selectedScenario) return;
     setIsLoadingSuggestions(true);
     try {
-      const s = await evalService.generateSpeakingSuggestions(transcript, defaultLevel, apiKey, mode === 'missions' && selectedScenario ? selectedScenario : undefined, selectedPersona);
+      const s = await evalService.generateSpeakingSuggestions(transcript, defaultLevel, apiKey, mode === 'missions' ? (selectedScenario || undefined) : undefined, selectedPersona);
       setSuggestions(s);
     } finally {
       setIsLoadingSuggestions(false);
@@ -379,19 +378,6 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
             <button
               type="button"
               disabled={isConnected}
-              onClick={() => setMode('free')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
-                mode === 'free'
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <MessageCircle className="w-4 h-4" />
-              Free Open-Ended Chat
-            </button>
-            <button
-              type="button"
-              disabled={isConnected}
               onClick={() => setMode('missions')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
                 mode === 'missions'
@@ -401,6 +387,19 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
             >
               <Target className="w-4 h-4" />
               Goal-Oriented Roleplay Missions
+            </button>
+            <button
+              type="button"
+              disabled={isConnected}
+              onClick={() => setMode('free')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                mode === 'free'
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <MessageCircle className="w-4 h-4" />
+              Free Open-Ended Chat
             </button>
           </div>
         </div>
@@ -499,7 +498,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
         </div>
 
         {/* Dynamic Speaking Suggestions Panel */}
-        {isConnected && mode === 'missions' && selectedScenario && suggestionsMode !== 'off' && (
+        {isConnected && (mode === 'free' || Boolean(selectedScenario)) && suggestionsMode !== 'off' && (
           <div className="bg-slate-900/90 border border-slate-800/80 rounded-2xl p-4 shadow-lg space-y-3 transition-all w-full max-w-2xl">
             <div className="flex items-center justify-between border-b border-slate-800/60 pb-2.5">
               <div className="flex items-center gap-2 text-amber-400">
