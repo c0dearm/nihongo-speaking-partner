@@ -163,18 +163,25 @@ describe('LivePartnerView', () => {
     fireEvent.click(furiganaBtn);
   });
 
-  it('generates session feedback report modal and adds grammar correction to notebook', async () => {
+  it('generates session feedback report modal and adds grammar correction to notebook, invoking onStatsUpdated', async () => {
     const saveNotebookSpy = vi.spyOn(repo, 'saveNotebookItem');
+    const onStatsUpdated = vi.fn();
 
-    render(
-      <SettingsProvider>
-        <LivePartnerView repository={repo} />
-      </SettingsProvider>
-    );
+    await act(async () => {
+      render(
+        <SettingsProvider>
+          <LivePartnerView repository={repo} onStatsUpdated={onStatsUpdated} />
+        </SettingsProvider>
+      );
+    });
 
-    fireEvent.click(screen.getByRole('button', { name: /Free Open-Ended Chat/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Free Open-Ended Chat/i }));
+    });
     const startBtn = screen.getByText(/Start Live Conversation/i);
-    fireEvent.click(startBtn);
+    await act(async () => {
+      fireEvent.click(startBtn);
+    });
 
     await waitFor(() => {
       expect(turnCallback).toBeDefined();
@@ -190,14 +197,21 @@ describe('LivePartnerView', () => {
     });
 
     const generateBtn = screen.getByText(/Generate Feedback Report/i);
-    fireEvent.click(generateBtn);
+    await act(async () => {
+      fireEvent.click(generateBtn);
+    });
 
     expect(await screen.findByText(/Executive Summary/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(onStatsUpdated).toHaveBeenCalled();
+    });
     expect(screen.getAllByText('watashi iku').length).toBeGreaterThan(0);
     expect(screen.getAllByText('watashi wa ikimasu').length).toBeGreaterThan(0);
 
     const addBtn = screen.getAllByText(/Add to Notebook/i)[0];
-    fireEvent.click(addBtn);
+    await act(async () => {
+      fireEvent.click(addBtn);
+    });
 
     await waitFor(() => {
       expect(saveNotebookSpy).toHaveBeenCalledWith(

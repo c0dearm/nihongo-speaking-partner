@@ -398,6 +398,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
         scenarioId: mode === 'missions' && selectedScenario ? selectedScenario.id : undefined,
         scenarioTitle: mode === 'missions' && selectedScenario ? selectedScenario.title : undefined,
       });
+      onStatsUpdated?.();
     } catch (err) {
       console.error(err);
       alert('Failed to generate session feedback report.');

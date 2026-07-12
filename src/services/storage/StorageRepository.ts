@@ -13,9 +13,15 @@ const DB_VERSION = 2;
 
 export class StorageRepository {
   private dbPromise: Promise<IDBPDatabase>;
+  private saveQueue: Promise<void> = Promise.resolve();
 
   constructor(private dbName = 'nihongo_partner_db') {
     this.dbPromise = this.openDatabase();
+  }
+
+  private getLocalDateString(ts: number): string {
+    const d = new Date(ts);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 
   private async openDatabase(): Promise<IDBPDatabase> {
@@ -53,32 +59,38 @@ export class StorageRepository {
 
   // Sessions CRUD
   async saveSession(session: SessionRecord): Promise<void> {
-    const db = await this.dbPromise;
-    const existing = await db.get('sessions', session.id);
-    await db.put('sessions', session);
+    this.saveQueue = this.saveQueue.then(async () => {
+      const db = await this.dbPromise;
+      const existing = await db.get('sessions', session.id);
+      await db.put('sessions', session);
 
-    if (!existing && session.durationSeconds > 0 && session.transcript.length > 0) {
-      const stats = await this.getUserStats();
-      const minutes = Math.max(1, Math.round(session.durationSeconds / 60));
-      const todayString = new Date(session.timestamp).toISOString().slice(0, 10);
-      let newStreak = stats.dailyStreak;
+      if (!existing && session.durationSeconds > 0 && session.transcript.length > 0) {
+        const stats = await this.getUserStats();
+        const minutes = Math.max(1, Math.round(session.durationSeconds / 60));
+        const todayString = this.getLocalDateString(session.timestamp);
+        let newStreak = stats.dailyStreak;
 
-      if (stats.lastPracticeDate !== todayString) {
-        const yesterday = new Date(session.timestamp - 86400000).toISOString().slice(0, 10);
-        if (stats.lastPracticeDate === yesterday) {
-          newStreak += 1;
-        } else {
-          newStreak = 1;
+        if (stats.lastPracticeDate !== todayString) {
+          const yesterdayString = this.getLocalDateString(session.timestamp - 86400000);
+          if (stats.lastPracticeDate === yesterdayString) {
+            newStreak += 1;
+          } else {
+            newStreak = 1;
+          }
         }
-      }
 
-      await this.updateUserStats({
-        ...stats,
-        dailyStreak: newStreak,
-        lastPracticeDate: todayString,
-        totalMinutesPracticed: stats.totalMinutesPracticed + minutes,
-      });
-    }
+        await this.updateUserStats({
+          ...stats,
+          dailyStreak: newStreak,
+          lastPracticeDate: todayString,
+          totalMinutesPracticed: stats.totalMinutesPracticed + minutes,
+        });
+      }
+    }).catch(e => {
+      console.error(e);
+      throw e;
+    });
+    return this.saveQueue;
   }
 
   async getSessions(): Promise<SessionRecord[]> {

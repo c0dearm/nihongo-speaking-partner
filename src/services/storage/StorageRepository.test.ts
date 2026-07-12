@@ -348,10 +348,15 @@ describe('StorageRepository', () => {
   });
 
   it('saveSession automatically updates totalMinutesPracticed and dailyStreak for new sessions without double-counting', async () => {
+    const getLocalDateString = (ts: number): string => {
+      const d = new Date(ts);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+
     // 1. Initial user stats
     await repo.updateUserStats({
       dailyStreak: 3,
-      lastPracticeDate: new Date(Date.now() - 86400000).toISOString().slice(0, 10), // yesterday
+      lastPracticeDate: getLocalDateString(Date.now() - 86400000), // yesterday in local time
       totalMinutesPracticed: 30,
       dailyGoalMinutes: 15,
     });
@@ -372,7 +377,7 @@ describe('StorageRepository', () => {
     const stats1 = await repo.getUserStats();
     expect(stats1.totalMinutesPracticed).toBe(32); // 30 + 2
     expect(stats1.dailyStreak).toBe(4); // 3 + 1 because yesterday was last practiced
-    expect(stats1.lastPracticeDate).toBe(new Date().toISOString().slice(0, 10));
+    expect(stats1.lastPracticeDate).toBe(getLocalDateString(Date.now()));
 
     // 3. Save the exact same session ID again (e.g. updating with feedback report)
     await repo.saveSession({
@@ -393,5 +398,89 @@ describe('StorageRepository', () => {
     const stats2 = await repo.getUserStats();
     expect(stats2.totalMinutesPracticed).toBe(32); // unchanged! No double counting
     expect(stats2.dailyStreak).toBe(4);
+  });
+
+  it('uses local timezone date strings rather than UTC dates when calculating daily streaks', async () => {
+    const getLocalDateString = (ts: number): string => {
+      const d = new Date(ts);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+
+    // Pick a timestamp where UTC date differs from local date if not near midnight, or explicitly construct one
+    // Let's create a timestamp for e.g. 2026-07-15T23:30:00 local time
+    const localTodayDate = new Date(2026, 6, 15, 23, 30, 0); // Month is 0-indexed (6 = July)
+    const todayTs = localTodayDate.getTime();
+    const yesterdayTs = todayTs - 86400000;
+
+    await repo.updateUserStats({
+      dailyStreak: 2,
+      lastPracticeDate: getLocalDateString(yesterdayTs),
+      totalMinutesPracticed: 20,
+      dailyGoalMinutes: 15,
+    });
+
+    const turn = { id: 'turn-local-tz', speaker: 'user' as const, text: 'ありがとうございます', timestamp: todayTs };
+
+    await repo.saveSession({
+      id: 'sess-local-tz-test',
+      timestamp: todayTs,
+      durationSeconds: 60,
+      personaId: 'casual_friend',
+      jlptLevel: 'N3',
+      transcript: [turn],
+    });
+
+    const stats = await repo.getUserStats();
+    expect(stats.lastPracticeDate).toBe(getLocalDateString(todayTs));
+    expect(stats.dailyStreak).toBe(3);
+  });
+
+  it('serializes multiple concurrent saveSession calls without race conditions on user stats', async () => {
+    const getLocalDateString = (ts: number): string => {
+      const d = new Date(ts);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+
+    await repo.updateUserStats({
+      dailyStreak: 1,
+      lastPracticeDate: getLocalDateString(Date.now() - 86400000),
+      totalMinutesPracticed: 10,
+      dailyGoalMinutes: 15,
+    });
+
+    const now = Date.now();
+    const turn = { id: 'turn-concurrent', speaker: 'user' as const, text: 'はい', timestamp: now };
+
+    // Fire off 3 concurrent saveSession calls with distinct session IDs
+    await Promise.all([
+      repo.saveSession({
+        id: 'concurrent-1',
+        timestamp: now,
+        durationSeconds: 60, // 1 min
+        personaId: 'casual_friend',
+        jlptLevel: 'N4',
+        transcript: [turn],
+      }),
+      repo.saveSession({
+        id: 'concurrent-2',
+        timestamp: now,
+        durationSeconds: 120, // 2 min
+        personaId: 'casual_friend',
+        jlptLevel: 'N4',
+        transcript: [turn],
+      }),
+      repo.saveSession({
+        id: 'concurrent-3',
+        timestamp: now,
+        durationSeconds: 180, // 3 min
+        personaId: 'casual_friend',
+        jlptLevel: 'N4',
+        transcript: [turn],
+      }),
+    ]);
+
+    const stats = await repo.getUserStats();
+    expect(stats.totalMinutesPracticed).toBe(16); // 10 + 1 + 2 + 3 = 16
+    expect(stats.dailyStreak).toBe(2); // incremented exactly once from yesterday to today
   });
 });
