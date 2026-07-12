@@ -32,6 +32,13 @@ export interface VocabularyItem {
   meaning: string;
 }
 
+export interface TurnVocabularyItem {
+  word: string;
+  reading: string;
+  meaning: string;
+  jlptLevel: JLPTLevel;
+}
+
 export interface SpeakingAssessment {
   overallScore: number;
   grammarScore: number;

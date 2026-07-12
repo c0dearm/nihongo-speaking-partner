@@ -7,6 +7,7 @@ import {
   RoleplayScenario,
   SpeakingSuggestion,
   PersonaId,
+  TurnVocabularyItem,
 } from '../../types';
 import { PersonaService } from '../persona/PersonaService';
 
@@ -197,6 +198,8 @@ Evaluate whether the user successfully communicated all requirements of their se
 
   private static furiganaCache = new Map<string, string>();
   private static inFlightFurigana = new Map<string, Promise<string>>();
+  private static vocabCache = new Map<string, TurnVocabularyItem[]>();
+  private static inFlightVocab = new Map<string, Promise<TurnVocabularyItem[]>>();
 
   async generateFurigana(text: string, apiKey: string): Promise<string> {
     const ai = this.getClient(apiKey);
@@ -248,6 +251,83 @@ Text to annotate: "${trimmed}"`;
       }
     })();
     EvaluationService.inFlightFurigana.set(trimmed, promise);
+    return promise;
+  }
+
+  async lookupTurnVocabulary(
+    text: string,
+    jlptLevel: JLPTLevel,
+    apiKey: string
+  ): Promise<TurnVocabularyItem[]> {
+    const ai = this.getClient(apiKey);
+    return this.lookupTurnVocabularyWithClient(ai, text, jlptLevel);
+  }
+
+  async lookupTurnVocabularyWithClient(
+    ai: GoogleGenAI,
+    text: string,
+    jlptLevel: JLPTLevel
+  ): Promise<TurnVocabularyItem[]> {
+    const trimmed = text.trim();
+    if (!trimmed) return [];
+
+    if (EvaluationService.vocabCache.has(trimmed)) {
+      return EvaluationService.vocabCache.get(trimmed)!;
+    }
+
+    if (EvaluationService.inFlightVocab.has(trimmed)) {
+      return EvaluationService.inFlightVocab.get(trimmed)!;
+    }
+
+    const prompt = `Extract 3 to 5 key vocabulary words, compound kanji, or idiomatic phrases used in the following Japanese utterance.
+Utterance: "${trimmed}"
+Student's Target Proficiency: JLPT ${jlptLevel}
+
+For each item, provide the exact Japanese word, its furigana reading, a concise English definition, and its approximate JLPT difficulty level (N5 to N1).`;
+
+    const promise = (async () => {
+      try {
+        const response = await ai.models.generateContent({
+          model: 'gemini-3.1-flash-lite-preview',
+          contents: prompt,
+          config: {
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  word: { type: Type.STRING },
+                  reading: { type: Type.STRING },
+                  meaning: { type: Type.STRING },
+                  jlptLevel: { type: Type.STRING },
+                },
+                required: ['word', 'reading', 'meaning', 'jlptLevel'],
+              },
+            },
+            temperature: 0.1,
+            maxOutputTokens: 500,
+            thinkingConfig: { thinkingBudget: 0 },
+          } as any,
+        });
+
+        const rawText =
+          (typeof response.text === 'function'
+            ? (response.text as () => string)()
+            : response.text) || '[]';
+        const parsed = JSON.parse(rawText) as TurnVocabularyItem[];
+        const result = Array.isArray(parsed) ? parsed : [];
+        EvaluationService.vocabCache.set(trimmed, result);
+        return result;
+      } catch (e) {
+        console.error('Failed to lookup turn vocabulary:', e);
+        return [];
+      } finally {
+        EvaluationService.inFlightVocab.delete(trimmed);
+      }
+    })();
+
+    EvaluationService.inFlightVocab.set(trimmed, promise);
     return promise;
   }
 

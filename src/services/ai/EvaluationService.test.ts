@@ -495,6 +495,61 @@ describe('EvaluationService', () => {
     expect(res1).toBe('漢字[かんじ]を勉強[べんきょう]する');
     expect(res2).toBe('漢字[かんじ]を勉強[べんきょう]する');
   });
+
+  it('lookupTurnVocabulary calls gemini-3.1-flash-lite-preview with structured schema and caches/deduplicates requests', async () => {
+    const service = new EvaluationService();
+    let resolvePromise: (value: any) => void;
+    const delayedPromise = new Promise((resolve) => {
+      resolvePromise = resolve;
+    });
+
+    const mockAiClient = {
+      models: {
+        generateContent: vi.fn().mockImplementation(() => delayedPromise),
+      },
+    };
+
+    const p1 = service.lookupTurnVocabularyWithClient(
+      mockAiClient as any,
+      '詳しい内容を検討します。',
+      'N3'
+    );
+    const p2 = service.lookupTurnVocabularyWithClient(
+      mockAiClient as any,
+      '詳しい内容を検討します。',
+      'N3'
+    );
+
+    expect(mockAiClient.models.generateContent).toHaveBeenCalledTimes(1);
+    expect(mockAiClient.models.generateContent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: 'gemini-3.1-flash-lite-preview',
+        contents: expect.stringContaining('詳しい内容を検討します。'),
+      })
+    );
+
+    const sampleVocab = [
+      { word: '詳しい', reading: 'くわしい', meaning: 'Detailed; accurate', jlptLevel: 'N3' },
+      { word: '検討', reading: 'けんとう', meaning: 'Consideration; examination', jlptLevel: 'N3' },
+    ];
+
+    resolvePromise!({
+      text: JSON.stringify(sampleVocab),
+    });
+
+    const [res1, res2] = await Promise.all([p1, p2]);
+    expect(res1).toEqual(sampleVocab);
+    expect(res2).toEqual(sampleVocab);
+
+    // 3rd call should hit cache and not call generateContent again
+    const res3 = await service.lookupTurnVocabularyWithClient(
+      mockAiClient as any,
+      '詳しい内容を検討します。',
+      'N3'
+    );
+    expect(res3).toEqual(sampleVocab);
+    expect(mockAiClient.models.generateContent).toHaveBeenCalledTimes(1);
+  });
 });
 
 
