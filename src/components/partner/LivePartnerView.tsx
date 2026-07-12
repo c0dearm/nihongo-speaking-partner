@@ -30,6 +30,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
   const clientRef = useRef<LiveAudioClient | null>(null);
   const sessionStartTimeRef = useRef<number>(Date.now());
   const currentSessionIdRef = useRef<string>('sess-' + Date.now());
+  const annotatingIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     clientRef.current = new LiveAudioClient();
@@ -50,6 +51,23 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
     }, 80);
     return () => clearInterval(interval);
   }, [isConnected]);
+
+  useEffect(() => {
+    if (!furiganaEnabled || !apiKey || transcript.length === 0) return;
+    transcript.forEach((t, idx) => {
+      const isDoneOrNotLatest = t.id.endsWith('-done') || idx < transcript.length - 1;
+      if (isDoneOrNotLatest && !t.furiganaText && t.text.trim() && !annotatingIdsRef.current.has(t.id)) {
+        annotatingIdsRef.current.add(t.id);
+        evalService.generateFurigana(t.text, apiKey).then((furigana) => {
+          if (furigana && furigana !== t.text) {
+            setTranscript((cur) =>
+              cur.map((row) => (row.id === t.id || row.id === t.id + '-done' ? { ...row, furiganaText: furigana } : row))
+            );
+          }
+        });
+      }
+    });
+  }, [transcript, furiganaEnabled, apiKey]);
 
   const startSession = async () => {
     if (!apiKey) {
@@ -77,11 +95,12 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
         setTranscript((prev) => {
           if (prev.length === 0) return prev;
           const last = prev[prev.length - 1];
-          if (apiKey && !last.furiganaText && last.text.trim()) {
+          if (apiKey && !last.furiganaText && last.text.trim() && !annotatingIdsRef.current.has(last.id)) {
+            annotatingIdsRef.current.add(last.id);
             evalService.generateFurigana(last.text, apiKey).then((furigana) => {
               if (furigana && furigana !== last.text) {
                 setTranscript((cur) =>
-                  cur.map((t) => (t.id === last.id ? { ...t, furiganaText: furigana } : t))
+                  cur.map((t) => (t.id === last.id || t.id === last.id + '-done' ? { ...t, furiganaText: furigana } : t))
                 );
               }
             });

@@ -22,10 +22,30 @@ export const DrillStudioView: React.FC<DrillStudioViewProps> = ({ repository }) 
   const [assessment, setAssessment] = useState<SpeakingAssessment | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [userSpeechFurigana, setUserSpeechFurigana] = useState<string | null>(null);
+  const [annotatingSpeech, setAnnotatingSpeech] = useState(false);
   const recognitionRef = useRef<any>(null);
 
   const drillService = new DrillService(repository);
   const evalService = new EvaluationService();
+
+  useEffect(() => {
+    if (!furiganaEnabled || !apiKey || !userSpeechText.trim()) {
+      setUserSpeechFurigana(null);
+      return;
+    }
+    setAnnotatingSpeech(true);
+    const timer = setTimeout(() => {
+      evalService.generateFurigana(userSpeechText, apiKey).then((furigana) => {
+        setUserSpeechFurigana(furigana);
+        setAnnotatingSpeech(false);
+      });
+    }, 600);
+    return () => {
+      clearTimeout(timer);
+      setAnnotatingSpeech(false);
+    };
+  }, [userSpeechText, furiganaEnabled, apiKey]);
 
   const toggleDictation = () => {
     if (isListening && recognitionRef.current) {
@@ -186,6 +206,7 @@ export const DrillStudioView: React.FC<DrillStudioViewProps> = ({ repository }) 
               setSelectedDrill(drill);
               setAssessment(null);
               setUserSpeechText('');
+              setUserSpeechFurigana(null);
             }}
             className="bg-slate-900 border border-slate-800 hover:border-indigo-500/50 rounded-xl p-5 cursor-pointer transition-all space-y-3"
           >
@@ -262,6 +283,17 @@ export const DrillStudioView: React.FC<DrillStudioViewProps> = ({ repository }) 
                     placeholder="Click 'Dictate via Microphone' and speak your answer in Japanese, or type here..."
                     className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-sm text-slate-200"
                   />
+                  {userSpeechText.trim() && (
+                    <div className="mt-3 p-3 bg-slate-950 border border-slate-800 rounded-lg space-y-1.5">
+                      <div className="flex items-center justify-between text-xs text-slate-400">
+                        <span>Live Response Preview (with Furigana reading aids):</span>
+                        {annotatingSpeech && <span className="text-indigo-400 animate-pulse">Adding readings...</span>}
+                      </div>
+                      <div className="text-base font-medium text-slate-100 leading-relaxed">
+                        {renderFurigana(userSpeechFurigana || userSpeechText, furiganaEnabled)}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex justify-end gap-3">
