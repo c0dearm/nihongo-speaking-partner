@@ -93,4 +93,22 @@ describe('SettingsView', () => {
 
     expect(await screen.findByText(/Study data imported successfully!/i)).toBeInTheDocument();
   });
+
+  it('allows toggling AI Adaptation Mode between Auto and Rigid Benchmark', async () => {
+    render(
+      <SettingsProvider>
+        <SettingsView repository={repo} />
+      </SettingsProvider>
+    );
+
+    expect(screen.getByText(/AI Adaptation Mode/i)).toBeInTheDocument();
+    const autoRadio = screen.getByLabelText(/Adaptive Learning \(Auto\)/i) as HTMLInputElement;
+    const rigidRadio = screen.getByLabelText(/Rigid Benchmark/i) as HTMLInputElement;
+
+    expect(autoRadio.checked).toBe(true);
+    fireEvent.click(rigidRadio);
+    expect(rigidRadio.checked).toBe(true);
+    expect(localStorage.getItem('nihongo_adaptation_mode')).toBe('rigid');
+  });
 });
+

@@ -2,15 +2,23 @@ import React, { useState } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import { JLPTLevel } from '../../types';
 import { StorageRepository } from '../../services/storage/StorageRepository';
-import { Key, Upload, Download, ShieldCheck } from 'lucide-react';
+import { Key, Upload, Download, ShieldCheck, Brain } from 'lucide-react';
 
 interface SettingsViewProps {
   repository: StorageRepository;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({ repository }) => {
-  const { apiKey, setApiKey, defaultLevel, setDefaultLevel, furiganaEnabled, setFuriganaEnabled } =
-    useSettings();
+  const {
+    apiKey,
+    setApiKey,
+    defaultLevel,
+    setDefaultLevel,
+    furiganaEnabled,
+    setFuriganaEnabled,
+    adaptationMode,
+    setAdaptationMode,
+  } = useSettings();
 
   const [message, setMessage] = useState<string | null>(null);
 
@@ -144,8 +152,72 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ repository }) => {
         </div>
       </div>
 
+      {/* AI Adaptation Mode */}
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-lg bg-indigo-950 text-indigo-400 border border-indigo-500/30">
+            <Brain className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-slate-100">AI Adaptation Mode</h3>
+            <p className="text-xs text-slate-400">
+              Control whether the AI dynamically adapts to your personal speech and mistake history, or maintains a rigid benchmark.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+          <label
+            className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
+              adaptationMode === 'auto'
+                ? 'bg-indigo-950/40 border-indigo-500'
+                : 'bg-slate-950 border-slate-800 hover:border-slate-700'
+            }`}
+          >
+            <input
+              type="radio"
+              name="adaptation-mode"
+              value="auto"
+              checked={adaptationMode === 'auto'}
+              onChange={() => setAdaptationMode('auto')}
+              className="mt-1 accent-indigo-500"
+            />
+            <div>
+              <span className="text-sm font-semibold text-slate-100 block">Adaptive Learning (Auto)</span>
+              <span className="text-xs text-slate-400 block mt-1">
+                Recommended. AI learns from your session history and unmastered mistakes, dynamically scaling speed and vocabulary live during calls.
+              </span>
+            </div>
+          </label>
+
+          <label
+            className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
+              adaptationMode === 'rigid'
+                ? 'bg-indigo-950/40 border-indigo-500'
+                : 'bg-slate-950 border-slate-800 hover:border-slate-700'
+            }`}
+          >
+            <input
+              type="radio"
+              name="adaptation-mode"
+              value="rigid"
+              checked={adaptationMode === 'rigid'}
+              onChange={() => setAdaptationMode('rigid')}
+              className="mt-1 accent-indigo-500"
+            />
+            <div>
+              <span className="text-sm font-semibold text-slate-100 block">Rigid Benchmark</span>
+              <span className="text-xs text-slate-400 block mt-1">
+                Strict exam practice. Locks the AI exactly to your selected JLPT level without simplifying vocabulary or speaking pace.
+              </span>
+            </div>
+          </label>
+        </div>
+      </div>
+
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-6">
         <h3 className="text-lg font-semibold text-slate-200">Local Data Backup & Migration</h3>
+
 
         <div className="flex flex-wrap gap-4">
           <button
