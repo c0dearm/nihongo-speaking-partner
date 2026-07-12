@@ -39,10 +39,29 @@ const mockGenerateSessionReport = vi.fn().mockResolvedValue({
   estimatedLevel: 'N4',
 });
 
+const mockGenerateSpeakingSuggestions = vi.fn().mockResolvedValue([
+  {
+    japanese: 'すみません、土曜日の夜７時に５人で予約したいのですが。',
+    furigana: 'すみません、土曜日[どようび]の夜[よる]７時[しちじ]に５人[ごにん]で予約[よやく]したいのですが。',
+    english: 'Excuse me, I would like to make a reservation for 5 people on Saturday evening at 7.',
+    tip: 'A polite, natural sentence using ~たいのですが to clearly state your reservation request.',
+  },
+  {
+    japanese: '土曜日の午後７時は空いていますか？田中と申します。',
+    furigana: '土曜日[どようび]の午後[ごご]７時[しちじ]は空[あ]いていますか？田中[たなか]と申[もう]します。',
+    english: 'Do you have availability for Saturday at 7 PM? My name is Tanaka.',
+    tip: 'Ask about table availability directly while politely stating your last name with ~と申します.',
+  },
+]);
+
+const mockGenerateFurigana = vi.fn().mockImplementation((text) => Promise.resolve(text));
+
 vi.mock('../../services/ai/EvaluationService', () => {
   return {
     EvaluationService: class {
       generateSessionReport = mockGenerateSessionReport;
+      generateSpeakingSuggestions = mockGenerateSpeakingSuggestions;
+      generateFurigana = mockGenerateFurigana;
     },
   };
 });
@@ -269,5 +288,30 @@ describe('LivePartnerView', () => {
       expect(btn).toHaveAttribute('title', 'Mode change will apply on next connection');
     });
   });
+
+  it('renders suggestions mode chip and displays dynamic speaking suggestion pills during roleplay missions', async () => {
+    render(
+      <SettingsProvider>
+        <LivePartnerView repository={repo} />
+      </SettingsProvider>
+    );
+
+    // Switch to missions mode
+    fireEvent.click(screen.getByRole('button', { name: /Goal-Oriented Roleplay Missions/i }));
+    expect(await screen.findByText(/Reserving an Izakaya Table/i)).toBeInTheDocument();
+
+    // Verify suggestions mode chip in header
+    expect(screen.getByText(/Hints: AUTO/i)).toBeInTheDocument();
+
+    // Start live conversation
+    fireEvent.click(screen.getByText(/Start Live Roleplay Mission/i));
+
+    // Verify turn completion triggers suggestion display
+    await waitFor(() => {
+      expect(screen.getByText(/What You Could Say Next/i)).toBeInTheDocument();
+      expect(screen.getByText(/Excuse me, I would like to make a reservation/i)).toBeInTheDocument();
+    });
+  });
 });
+
 

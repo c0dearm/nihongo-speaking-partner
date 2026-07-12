@@ -5,7 +5,7 @@ import { EvaluationService } from '../../services/ai/EvaluationService';
 import { LiveAudioClient } from '../../services/ai/LiveAudioClient';
 import { RoleplayScenarioService } from '../../services/scenarios/RoleplayScenarioService';
 import { ProficiencyProfileService } from '../../services/ai/ProficiencyProfileService';
-import { PersonaId, ConversationTurn, SessionReport, GrammarCorrection, RoleplayScenario, ProficiencyProfile } from '../../types';
+import { PersonaId, ConversationTurn, SessionReport, GrammarCorrection, RoleplayScenario, ProficiencyProfile, SpeakingSuggestion } from '../../types';
 import { useSettings } from '../../context/SettingsContext';
 import { renderFurigana } from '../../utils/furigana';
 import { WaveformVisualizer } from './WaveformVisualizer';
@@ -17,12 +17,21 @@ interface LivePartnerViewProps {
 }
 
 export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) => {
-  const { apiKey, defaultLevel, furiganaEnabled, setFuriganaEnabled, adaptationMode, setAdaptationMode } = useSettings();
+  const { apiKey, defaultLevel, furiganaEnabled, setFuriganaEnabled, adaptationMode, setAdaptationMode, suggestionsMode, setSuggestionsMode } = useSettings();
   const [mode, setMode] = useState<'free' | 'missions'>('free');
   const [selectedPersona, setSelectedPersona] = useState<PersonaId>('casual_friend');
   const [scenarios, setScenarios] = useState<RoleplayScenario[]>([]);
   const [selectedScenario, setSelectedScenario] = useState<RoleplayScenario | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  const [suggestions, setSuggestions] = useState<SpeakingSuggestion[]>([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+
+  const toggleSuggestionsMode = () => {
+    if (suggestionsMode === 'auto') setSuggestionsMode('manual');
+    else if (suggestionsMode === 'manual') setSuggestionsMode('off');
+    else setSuggestionsMode('auto');
+  };
 
   const [isConnected, setIsConnected] = useState(false);
   const [transcript, setTranscript] = useState<ConversationTurn[]>([]);
@@ -114,6 +123,13 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
 
     setTranscript([]);
     setReport(null);
+    setSuggestions([]);
+    if (mode === 'missions' && selectedScenario && suggestionsMode === 'auto') {
+      setIsLoadingSuggestions(true);
+      evalService.generateSpeakingSuggestions([], selectedScenario, defaultLevel, apiKey)
+        .then(s => setSuggestions(s))
+        .finally(() => setIsLoadingSuggestions(false));
+    }
     sessionStartTimeRef.current = Date.now();
     currentSessionIdRef.current = 'sess-' + Date.now();
     setStatusMessage('Connecting to Gemini Live API WebSocket...');
@@ -140,7 +156,14 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
               }
             });
           }
-          return [...prev.slice(0, -1), { ...last, id: last.id + '-done' }];
+          const updatedTranscript = [...prev.slice(0, -1), { ...last, id: last.id + '-done' }];
+          if (mode === 'missions' && selectedScenario && turn.speaker === 'ai' && suggestionsMode === 'auto') {
+            setIsLoadingSuggestions(true);
+            evalService.generateSpeakingSuggestions(updatedTranscript, selectedScenario, defaultLevel, apiKey)
+              .then(s => setSuggestions(s))
+              .finally(() => setIsLoadingSuggestions(false));
+          }
+          return updatedTranscript;
         });
         return;
       } else if (turn.text) {
@@ -219,6 +242,17 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
     }
   };
 
+  const handleFetchManualSuggestions = async () => {
+    if (!selectedScenario) return;
+    setIsLoadingSuggestions(true);
+    try {
+      const s = await evalService.generateSpeakingSuggestions(transcript, selectedScenario, defaultLevel, apiKey);
+      setSuggestions(s);
+    } finally {
+      setIsLoadingSuggestions(false);
+    }
+  };
+
   const handleGenerateReport = async () => {
     if (transcript.length === 0 || !apiKey) return;
     setGeneratingReport(true);
@@ -290,6 +324,18 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
             } disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             {adaptationMode === 'auto' ? `🧠 Adaptive Mode: AUTO (${profile?.estimatedLevel || defaultLevel})` : `🔒 Rigid Mode: STRICT ${defaultLevel}`}
+          </button>
+
+          <button
+            type="button"
+            onClick={toggleSuggestionsMode}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+              suggestionsMode !== 'off'
+                ? 'bg-amber-950/40 border-amber-500/40 text-amber-300 hover:bg-amber-900/60'
+                : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            💡 Hints: {suggestionsMode.toUpperCase()}
           </button>
 
           <div className="flex bg-slate-900 border border-slate-800 rounded-xl p-1 gap-1">
@@ -414,6 +460,50 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
         <div className="w-full max-w-lg px-4 py-2 rounded-lg bg-slate-950/80 border border-slate-800 text-center text-xs font-mono text-slate-300">
           Status: <span className="text-indigo-400">{statusMessage}</span>
         </div>
+
+        {/* Dynamic Speaking Suggestions Panel */}
+        {isConnected && mode === 'missions' && selectedScenario && suggestionsMode !== 'off' && (
+          <div className="bg-slate-900/90 border border-slate-800/80 rounded-2xl p-4 shadow-lg space-y-3 transition-all w-full max-w-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800/60 pb-2.5">
+              <div className="flex items-center gap-2 text-amber-400">
+                <span className="text-base">💡</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-200">What You Could Say Next</span>
+              </div>
+              {isLoadingSuggestions && (
+                <span className="text-xs text-indigo-400 animate-pulse font-medium">Generating response hints...</span>
+              )}
+            </div>
+
+            {suggestionsMode === 'manual' && suggestions.length === 0 && !isLoadingSuggestions && (
+              <div className="text-center py-2">
+                <button
+                  type="button"
+                  onClick={handleFetchManualSuggestions}
+                  className="px-4 py-2 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/40 text-indigo-200 text-xs font-semibold transition-all shadow-sm"
+                >
+                  💡 Stuck? Click to Generate Response Suggestions
+                </button>
+              </div>
+            )}
+
+            {suggestions.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-48 overflow-y-auto pr-1">
+                {suggestions.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="p-3 rounded-xl bg-slate-950/80 border border-slate-800/80 hover:border-slate-700 transition-all space-y-1.5 text-left"
+                  >
+                    <p className="text-sm font-medium text-slate-100">
+                      {renderFurigana(item.furigana || item.japanese, furiganaEnabled)}
+                    </p>
+                    <p className="text-xs text-slate-400 italic">{item.english}</p>
+                    <p className="text-[11px] text-indigo-400/90 font-medium">💡 Tip: {item.tip}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {isConnected ? (
           <div className="flex flex-col items-center gap-6 w-full max-w-md">
@@ -571,6 +661,21 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
                   } disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   {adaptationMode === 'auto' ? `🧠 Adaptive Mode: AUTO (${profile?.estimatedLevel || defaultLevel})` : `🔒 Rigid Mode: STRICT ${defaultLevel}`}
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-slate-800/60">
+                <span className="text-xs text-slate-400">Response Suggestions</span>
+                <button
+                  type="button"
+                  onClick={toggleSuggestionsMode}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border transition-all ${
+                    suggestionsMode !== 'off'
+                      ? 'bg-amber-950/40 border-amber-500/40 text-amber-300 hover:bg-amber-900/60'
+                      : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  💡 Hints: {suggestionsMode.toUpperCase()}
                 </button>
               </div>
 
