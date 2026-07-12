@@ -280,12 +280,14 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
         <div className="flex items-center flex-wrap gap-3">
           <button
             type="button"
+            disabled={isConnected}
+            title={isConnected ? "Mode change will apply on next connection" : ""}
             onClick={() => setAdaptationMode(adaptationMode === 'auto' ? 'rigid' : 'auto')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
               adaptationMode === 'auto'
                 ? 'bg-indigo-950/60 border-indigo-500/40 text-indigo-300 hover:bg-indigo-900/80'
                 : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
-            }`}
+            } disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             {adaptationMode === 'auto' ? `🧠 Adaptive Mode: AUTO (${profile?.estimatedLevel || defaultLevel})` : `🔒 Rigid Mode: STRICT ${defaultLevel}`}
           </button>
@@ -554,19 +556,38 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
               </button>
             </div>
 
-            <div className="flex items-center justify-between bg-slate-950 p-3 rounded-lg border border-slate-800">
-              <span className="text-xs text-slate-400">Furigana Display</span>
-              <button
-                type="button"
-                onClick={() => setFuriganaEnabled(!furiganaEnabled)}
-                className={`px-3 py-1 rounded-full text-xs font-medium border ${
-                  furiganaEnabled
-                    ? 'bg-indigo-900/50 border-indigo-500 text-indigo-300'
-                    : 'bg-slate-800 border-slate-700 text-slate-400'
-                }`}
-              >
-                {furiganaEnabled ? 'Furigana ON' : 'Furigana OFF'}
-              </button>
+            <div className="flex flex-col gap-3 bg-slate-950 p-3 rounded-lg border border-slate-800">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-400">Adaptation Mode</span>
+                <button
+                  type="button"
+                  disabled={isConnected}
+                  title={isConnected ? "Mode change will apply on next connection" : ""}
+                  onClick={() => setAdaptationMode(adaptationMode === 'auto' ? 'rigid' : 'auto')}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border transition-all ${
+                    adaptationMode === 'auto'
+                      ? 'bg-indigo-900/50 border-indigo-500 text-indigo-300 hover:bg-indigo-900/80'
+                      : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  {adaptationMode === 'auto' ? `🧠 Adaptive Mode: AUTO (${profile?.estimatedLevel || defaultLevel})` : `🔒 Rigid Mode: STRICT ${defaultLevel}`}
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-slate-800/60">
+                <span className="text-xs text-slate-400">Furigana Display</span>
+                <button
+                  type="button"
+                  onClick={() => setFuriganaEnabled(!furiganaEnabled)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium border ${
+                    furiganaEnabled
+                      ? 'bg-indigo-900/50 border-indigo-500 text-indigo-300'
+                      : 'bg-slate-800 border-slate-700 text-slate-400'
+                  }`}
+                >
+                  {furiganaEnabled ? 'Furigana ON' : 'Furigana OFF'}
+                </button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-3 pr-1">

@@ -53,6 +53,7 @@ describe('LivePartnerView', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     turnCallback = undefined;
+    localStorage.clear();
     localStorage.setItem('nihongo_api_key', 'test-api-key');
     vi.spyOn(window, 'alert').mockImplementation(() => {});
   });
@@ -218,7 +219,55 @@ describe('LivePartnerView', () => {
       );
     });
 
+    const endBtn = screen.getByText(/End Conversation/i);
+    fireEvent.click(endBtn);
+
+    await waitFor(() => {
+      expect(mockDisconnect).toHaveBeenCalled();
+    });
+
     fireEvent.click(screen.getByText(/Adaptive Mode: AUTO/i));
     expect(screen.getByText(/Rigid Mode: STRICT/i)).toBeInTheDocument();
   });
+
+  it('renders adaptation mode chip in slide-out drawer and disables both header and drawer chips when connected', async () => {
+    render(
+      <SettingsProvider>
+        <LivePartnerView repository={repo} />
+      </SettingsProvider>
+    );
+
+    // Before connecting, studio header chip should be enabled
+    const headerChipBeforeConnect = screen.getByText(/Adaptive Mode: AUTO/i).closest('button')!;
+    expect(headerChipBeforeConnect).not.toBeDisabled();
+
+    // Start live conversation (connect)
+    const startBtn = screen.getByText(/Start Live Conversation/i);
+    fireEvent.click(startBtn);
+
+    await waitFor(() => {
+      expect(mockConnect).toHaveBeenCalled();
+      expect(screen.getByText(/End Conversation/i)).toBeInTheDocument();
+    });
+
+    // Verify studio header chip is disabled when connected
+    const headerChipConnected = screen.getByText(/Adaptive Mode: AUTO/i).closest('button')!;
+    expect(headerChipConnected).toBeDisabled();
+    expect(headerChipConnected).toHaveAttribute('title', 'Mode change will apply on next connection');
+
+    // Open slide-out transcript drawer
+    fireEvent.click(screen.getByText(/Transcript Drawer/i));
+    expect(await screen.findByText(/Live Transcript Drawer/i)).toBeInTheDocument();
+
+    // Verify both header and drawer chips are present and disabled inside the drawer view
+    const allChips = screen.getAllByText(/Adaptive Mode: AUTO/i);
+    expect(allChips.length).toBeGreaterThanOrEqual(2);
+
+    allChips.forEach((chipEl) => {
+      const btn = chipEl.closest('button')!;
+      expect(btn).toBeDisabled();
+      expect(btn).toHaveAttribute('title', 'Mode change will apply on next connection');
+    });
+  });
 });
+
