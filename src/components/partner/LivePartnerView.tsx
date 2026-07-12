@@ -14,9 +14,10 @@ import { Mic, PhoneOff, Sparkles, BookPlus, BookOpen, MessageSquare, X, Target, 
 
 interface LivePartnerViewProps {
   repository: StorageRepository;
+  onStatsUpdated?: () => void;
 }
 
-export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) => {
+export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, onStatsUpdated }) => {
   const { apiKey, defaultLevel, furiganaEnabled, setFuriganaEnabled, adaptationMode, setAdaptationMode, suggestionsMode, setSuggestionsMode } = useSettings();
   const [mode, setMode] = useState<'free' | 'missions'>('missions');
   const [selectedPersona, setSelectedPersona] = useState<PersonaId>('casual_friend');
@@ -357,6 +358,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
         scenarioId: mode === 'missions' && selectedScenario ? selectedScenario.id : undefined,
         scenarioTitle: mode === 'missions' && selectedScenario ? selectedScenario.title : undefined,
       });
+      onStatsUpdated?.();
     }
   };
 
@@ -584,7 +586,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
       ) : (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-slate-400">Choose Your Roleplay Mission ({defaultLevel})</h3>
+            <h3 className="text-sm font-semibold text-slate-400">Choose Your Roleplay Mission</h3>
             <button
               type="button"
               disabled={isConnected}
@@ -610,9 +612,11 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
                 }`}
               >
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-semibold px-2 py-0.5 rounded bg-indigo-950 text-indigo-400 border border-indigo-500/30">
-                    {s.jlptLevel}
-                  </span>
+                  {s.jlptLevel ? (
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded bg-indigo-950 text-indigo-400 border border-indigo-500/30">
+                      {s.jlptLevel}
+                    </span>
+                  ) : null}
                   <span className="text-xs text-slate-400 uppercase">{s.category}</span>
                 </div>
                 <p className="font-semibold text-slate-100 mt-1">{s.title}</p>

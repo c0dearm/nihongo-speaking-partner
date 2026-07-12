@@ -730,7 +730,63 @@ describe('LivePartnerView', () => {
     expect(screen.queryByText('練習')).not.toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /Words/i }).length).toBeGreaterThanOrEqual(1);
   });
+
+  it('renders Choose Your Roleplay Mission without parenthesis level and guards empty badge spans, invoking onStatsUpdated on endSession', async () => {
+    const onStatsUpdated = vi.fn();
+    await act(async () => {
+      render(
+        <SettingsProvider>
+          <LivePartnerView repository={repo} onStatsUpdated={onStatsUpdated} />
+        </SettingsProvider>
+      );
+    });
+
+    // 1. Verify exact header text without (N4)
+    expect(screen.getByText('Choose Your Roleplay Mission')).toBeInTheDocument();
+    expect(screen.queryByText(/Choose Your Roleplay Mission \(/i)).not.toBeInTheDocument();
+
+    // 2. Verify level-agnostic missions without jlptLevel do not render empty spans
+    // Wait for scenario cards to render from async useEffect
+    await screen.findAllByText(/Reserving an Izakaya Table|Ordering at an Izakaya|Ordering Lunch at a Diner/i);
+    const missionCards = screen.getAllByRole('button').filter((btn) =>
+      btn.textContent?.includes('Ordering at an Izakaya') ||
+      btn.textContent?.includes('Reserving an Izakaya Table') ||
+      btn.textContent?.includes('Ordering Lunch at a Diner')
+    );
+    expect(missionCards.length).toBeGreaterThanOrEqual(1);
+    const izakayaCard = missionCards[0];
+    const spans = izakayaCard.querySelectorAll('span');
+    spans.forEach((span) => {
+      expect(span.textContent?.trim()).not.toBe('');
+    });
+
+    // 3. Start a session, trigger a turn, and end session to verify onStatsUpdated is called
+    const startBtn = screen.getByRole('button', { name: /Start Live/i });
+    await act(async () => {
+      fireEvent.click(startBtn);
+    });
+
+    await waitFor(() => {
+      expect(mockConnect).toHaveBeenCalled();
+      expect(turnCallback).toBeDefined();
+    });
+
+    act(() => {
+      turnCallback?.({ speaker: 'user', text: 'すみません' });
+      turnCallback?.({ turnComplete: true, speaker: 'user', text: 'すみません' });
+    });
+
+    const endBtn = screen.getByRole('button', { name: /End Conversation/i });
+    await act(async () => {
+      fireEvent.click(endBtn);
+    });
+
+    await waitFor(() => {
+      expect(onStatsUpdated).toHaveBeenCalled();
+    });
+  });
 });
+
 
 
 

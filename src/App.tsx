@@ -41,7 +41,12 @@ const MainContent: React.FC = () => {
       )}
 
       <main className="flex-1 pb-20 md:pb-0">
-        {activeTab === 'partner' && <LivePartnerView repository={repository} />}
+        {activeTab === 'partner' && (
+          <LivePartnerView
+            repository={repository}
+            onStatsUpdated={() => repository.getUserStats().then((stats) => setStreakDays(stats.dailyStreak))}
+          />
+        )}
         {activeTab === 'notebook' && <NotebookView repository={repository} />}
         {activeTab === 'dashboard' && <DashboardView repository={repository} />}
         {activeTab === 'settings' && (
