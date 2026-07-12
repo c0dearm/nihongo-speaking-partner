@@ -38,6 +38,7 @@ export class AudioPlayer {
   async enqueuePcm24k(base64Pcm: string): Promise<void> {
     const ctx = this.getContext();
     if (ctx.state === 'suspended') {
+      console.log('[AudioPlayer] AudioContext suspended on enqueue, resuming...');
       await ctx.resume();
     }
 

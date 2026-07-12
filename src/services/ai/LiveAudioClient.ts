@@ -45,10 +45,12 @@ export class LiveAudioClient {
     );
 
     const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${apiKey}`;
+    console.log('[LiveAudioClient] Connecting to WebSocket:', wsUrl.replace(apiKey, 'API_KEY_HIDDEN'));
     this.ws = new WebSocket(wsUrl);
 
     this.ws.onopen = async () => {
       this.isConnected = true;
+      console.log('[LiveAudioClient] WebSocket onopen fired. Sending setup message...');
       const setupMessage = {
         setup: {
           model: 'models/gemini-3.1-flash-live-preview',
@@ -74,12 +76,10 @@ export class LiveAudioClient {
           this.ws.send(
             JSON.stringify({
               realtimeInput: {
-                mediaChunks: [
-                  {
-                    mimeType: 'audio/pcm;rate=16000',
-                    data: pcmBase64,
-                  },
-                ],
+                audio: {
+                  mimeType: 'audio/pcm;rate=16000',
+                  data: pcmBase64,
+                },
               },
             })
           );
@@ -98,7 +98,25 @@ export class LiveAudioClient {
         return;
       }
 
+      console.log('[LiveAudioClient] Received WebSocket frame:', data);
+
+      if (data.setupComplete) {
+        console.log('[LiveAudioClient] Setup successfully completed with Gemini server.');
+      }
+
+      if (data.error || data.error_details) {
+        console.error('[LiveAudioClient] Server returned error:', data.error || data.error_details);
+        if (this.onTurnEventCallback) {
+          const errorMsg = typeof data.error === 'object' ? data.error.message || JSON.stringify(data.error) : String(data.error || 'Unknown server error');
+          this.onTurnEventCallback({
+            speaker: 'ai',
+            text: `⚠️ [Server Error]: ${errorMsg}`,
+          });
+        }
+      }
+
       if (data.serverContent?.interrupted) {
+        console.log('[LiveAudioClient] AI turn interrupted by user speech.');
         this.player.clearQueue();
         if (this.onTurnEventCallback) {
           this.onTurnEventCallback({ speaker: 'ai', text: '', interrupted: true });
@@ -109,9 +127,11 @@ export class LiveAudioClient {
       if (modelTurn?.parts) {
         for (const part of modelTurn.parts) {
           if (part.inlineData?.mimeType?.startsWith('audio/pcm')) {
+            console.log('[LiveAudioClient] Received audio/pcm output chunk, bytes:', part.inlineData.data?.length);
             await this.player.enqueuePcm24k(part.inlineData.data);
           }
           if (part.text && this.onTurnEventCallback) {
+            console.log('[LiveAudioClient] Received text part:', part.text);
             this.onTurnEventCallback({ speaker: 'ai', text: part.text });
           }
         }
@@ -119,15 +139,29 @@ export class LiveAudioClient {
     };
 
     this.ws.onerror = (e) => {
-      console.error('Gemini Live API WebSocket error:', e);
+      console.error('[LiveAudioClient] WebSocket onerror event:', e);
+      if (this.onTurnEventCallback) {
+        this.onTurnEventCallback({
+          speaker: 'ai',
+          text: '⚠️ [Connection Error]: WebSocket connection encountered an error.',
+        });
+      }
     };
 
-    this.ws.onclose = () => {
+    this.ws.onclose = (e) => {
+      console.warn('[LiveAudioClient] WebSocket onclose fired. Code:', e.code, 'Reason:', e.reason);
       this.isConnected = false;
+      if (e.code !== 1000 && this.onTurnEventCallback) {
+        this.onTurnEventCallback({
+          speaker: 'ai',
+          text: `⚠️ [Connection Closed]: Code ${e.code} ${e.reason ? `(${e.reason})` : ''}`,
+        });
+      }
     };
   }
 
   disconnect(): void {
+    console.log('[LiveAudioClient] Disconnecting and cleaning up resources...');
     this.isConnected = false;
     this.capture.stop();
     this.player.clearQueue();

@@ -22,6 +22,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
   const [generatingReport, setGeneratingReport] = useState(false);
   const [showDrawer, setShowDrawer] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string>('Ready to connect.');
 
   const personaService = new PersonaService();
   const evalService = new EvaluationService();
@@ -61,8 +62,17 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
     setReport(null);
     sessionStartTimeRef.current = Date.now();
     currentSessionIdRef.current = 'sess-' + Date.now();
+    setStatusMessage('Connecting to Gemini Live API WebSocket...');
 
     client.onTurnEvent((turn) => {
+      if (turn.text.startsWith('⚠️')) {
+        setStatusMessage(turn.text);
+      } else if (turn.interrupted) {
+        setStatusMessage('AI interrupted by user speaking.');
+      } else if (turn.text) {
+        setStatusMessage(`AI speaking: "${turn.text.slice(0, 40)}..."`);
+      }
+
       setTranscript((prev) => [
         ...prev,
         {
@@ -74,8 +84,14 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
       ]);
     });
 
-    await client.connect(selectedPersona, defaultLevel, apiKey);
-    setIsConnected(true);
+    try {
+      await client.connect(selectedPersona, defaultLevel, apiKey);
+      setIsConnected(true);
+      setStatusMessage('🟢 Connected & Streaming Microphone (16kHz PCM). Speak now!');
+    } catch (err: any) {
+      console.error(err);
+      setStatusMessage(`⚠️ Connection failed: ${err?.message || err}`);
+    }
   };
 
   const endSession = async () => {
@@ -171,6 +187,10 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
       </div>
 
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 flex flex-col items-center justify-center space-y-6">
+        <div className="w-full max-w-lg px-4 py-2 rounded-lg bg-slate-950/80 border border-slate-800 text-center text-xs font-mono text-slate-300">
+          Status: <span className={statusMessage.startsWith('⚠️') ? 'text-amber-400 font-bold' : 'text-indigo-400'}>{statusMessage}</span>
+        </div>
+
         <WaveformVisualizer
           inputRms={rmsLevels.inputRms}
           outputRms={rmsLevels.outputRms}

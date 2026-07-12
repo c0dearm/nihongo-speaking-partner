@@ -19,6 +19,11 @@ export class AudioCapture {
 
     const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
     this.audioCtx = new AudioCtxClass({ sampleRate: 16000 });
+    if (this.audioCtx.state === 'suspended') {
+      console.log('[AudioCapture] AudioContext suspended on start, resuming...');
+      await this.audioCtx.resume();
+    }
+    console.log('[AudioCapture] Started microphone. AudioContext sampleRate:', this.audioCtx.sampleRate);
     this.source = this.audioCtx.createMediaStreamSource(this.stream);
 
     // Using ScriptProcessor for maximum cross-browser client-side simplicity without external worklet file loads
@@ -41,7 +46,8 @@ export class AudioCapture {
       for (let i = 0; i < uint8.length; i++) {
         binary += String.fromCharCode(uint8[i]);
       }
-      onPcmChunkBase64(btoa(binary));
+      const base64 = btoa(binary);
+      onPcmChunkBase64(base64);
     };
 
     this.source.connect(this.processor);
