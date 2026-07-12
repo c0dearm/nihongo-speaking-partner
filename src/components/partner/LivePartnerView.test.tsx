@@ -312,6 +312,144 @@ describe('LivePartnerView', () => {
       expect(screen.getByText(/Excuse me, I would like to make a reservation/i)).toBeInTheDocument();
     });
   });
+
+  it('renders fallback prompt when suggestionsMode is auto and suggestions fail to load', async () => {
+    mockGenerateSpeakingSuggestions.mockResolvedValue([]);
+
+    render(
+      <SettingsProvider>
+        <LivePartnerView repository={repo} />
+      </SettingsProvider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Goal-Oriented Roleplay Missions/i }));
+    expect(await screen.findByText(/Reserving an Izakaya Table/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText(/Start Live Roleplay Mission/i));
+
+    await waitFor(() => {
+      expect(turnCallback).toBeDefined();
+    });
+
+    act(() => {
+      turnCallback?.({ speaker: 'ai', text: '何名様でしょうか？' });
+      turnCallback?.({ speaker: 'ai', text: '何名様でしょうか？', turnComplete: true });
+    });
+
+    expect(await screen.findByText(/Could not load suggestions right now\. Speak naturally when ready!/i)).toBeInTheDocument();
+
+    // Reset default mock value for subsequent tests
+    mockGenerateSpeakingSuggestions.mockResolvedValue([
+      {
+        japanese: 'すみません、土曜日の夜７時に５人で予約したいのですが。',
+        furigana: 'すみません、土曜日[どようび]の夜[よる]７時[しちじ]に５人[ごにん]で予約[よやく]したいのですが。',
+        english: 'Excuse me, I would like to make a reservation for 5 people on Saturday evening at 7.',
+        tip: 'A polite, natural sentence using ~たいのですが to clearly state your reservation request.',
+      },
+      {
+        japanese: '土曜日の午後７時は空いていますか？田中と申します。',
+        furigana: '土曜日[どようび]の午後[ごご]７時[しちじ]は空[あ]いていますか？田中[たなか]と申[もう]します。',
+        english: 'Do you have availability for Saturday at 7 PM? My name is Tanaka.',
+        tip: 'Ask about table availability directly while politely stating your last name with ~と申します.',
+      },
+    ]);
+  });
+
+  it('deduplicates speaking suggestion requests for the same turn id', async () => {
+    render(
+      <SettingsProvider>
+        <LivePartnerView repository={repo} />
+      </SettingsProvider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Goal-Oriented Roleplay Missions/i }));
+    expect(await screen.findByText(/Reserving an Izakaya Table/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByText(/Start Live Roleplay Mission/i));
+
+    await waitFor(() => {
+      expect(turnCallback).toBeDefined();
+    });
+
+    mockGenerateSpeakingSuggestions.mockClear();
+
+    // Simulate turn chunk then two identical turnComplete events for the same AI turn (e.g. duplicate or Strict Mode updater double execution)
+    act(() => {
+      turnCallback?.({ id: 'turn-double-test', speaker: 'ai', text: '何名様でしょうか？' });
+      turnCallback?.({ id: 'turn-double-test', speaker: 'ai', text: '何名様でしょうか？', turnComplete: true });
+      turnCallback?.({ id: 'turn-double-test', speaker: 'ai', text: '何名様でしょうか？', turnComplete: true });
+    });
+
+    await waitFor(() => {
+      expect(mockGenerateSpeakingSuggestions).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('includes scenarioId and scenarioTitle when saving a mission session', async () => {
+    const saveSessionSpy = vi.spyOn(repo, 'saveSession');
+    render(
+      <SettingsProvider>
+        <LivePartnerView repository={repo} />
+      </SettingsProvider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Goal-Oriented Roleplay Missions/i }));
+    const izakayaCards = await screen.findAllByText(/Reserving an Izakaya Table/i);
+    fireEvent.click(izakayaCards[0]);
+    fireEvent.click(screen.getByText(/Start Live Roleplay Mission/i));
+
+    await waitFor(() => {
+      expect(mockConnect).toHaveBeenCalled();
+    });
+
+    act(() => {
+      turnCallback?.({ speaker: 'user', text: 'こんにちは' });
+    });
+
+    fireEvent.click(screen.getByText(/End Conversation/i));
+
+    await waitFor(() => {
+      expect(saveSessionSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          scenarioId: 'izakaya_reserve',
+          scenarioTitle: 'Reserving an Izakaya Table',
+        })
+      );
+    });
+  });
+
+  it('triggers generateSpeakingSuggestions immediately when toggled to auto mid-session', async () => {
+    mockGenerateSpeakingSuggestions.mockClear();
+    render(
+      <SettingsProvider>
+        <LivePartnerView repository={repo} />
+      </SettingsProvider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Goal-Oriented Roleplay Missions/i }));
+    expect(await screen.findByText(/Reserving an Izakaya Table/i)).toBeInTheDocument();
+
+    // Set suggestions mode to 'manual' before starting
+    fireEvent.click(screen.getByText(/Hints: AUTO/i)); // Toggle to manual
+
+    fireEvent.click(screen.getByText(/Start Live Roleplay Mission/i));
+
+    await waitFor(() => {
+      expect(mockConnect).toHaveBeenCalled();
+    });
+
+    mockGenerateSpeakingSuggestions.mockClear();
+
+    // Now toggle to 'auto' mid-session
+    fireEvent.click(screen.getByText(/Hints: MANUAL/i)); // Toggle from manual to off
+    fireEvent.click(screen.getByText(/Hints: OFF/i)); // Toggle from off to auto
+
+    await waitFor(() => {
+      expect(mockGenerateSpeakingSuggestions).toHaveBeenCalled();
+    });
+  });
 });
+
+
+
 
 

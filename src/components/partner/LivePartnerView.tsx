@@ -51,6 +51,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
   const sessionStartTimeRef = useRef<number>(Date.now());
   const currentSessionIdRef = useRef<string>('sess-' + Date.now());
   const annotatingIdsRef = useRef<Set<string>>(new Set());
+  const lastSuggestedTurnIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     clientRef.current = new LiveAudioClient();
@@ -108,6 +109,33 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
     });
   }, [transcript, furiganaEnabled, apiKey]);
 
+  const prevSuggestionsModeRef = useRef<string>(suggestionsMode);
+
+  useEffect(() => {
+    const prevMode = prevSuggestionsModeRef.current;
+    prevSuggestionsModeRef.current = suggestionsMode;
+
+    if (
+      suggestionsMode === 'auto' &&
+      prevMode !== 'auto' &&
+      isConnected &&
+      mode === 'missions' &&
+      selectedScenario &&
+      suggestions.length === 0 &&
+      !isLoadingSuggestions
+    ) {
+      if (transcript.length > 0) {
+        const lastTurn = transcript[transcript.length - 1];
+        lastSuggestedTurnIdRef.current = lastTurn.id.replace('-done', '');
+      }
+      setIsLoadingSuggestions(true);
+      evalService
+        .generateSpeakingSuggestions(transcript, selectedScenario, defaultLevel, apiKey)
+        .then((s) => setSuggestions(s))
+        .finally(() => setIsLoadingSuggestions(false));
+    }
+  }, [suggestionsMode, isConnected, mode, selectedScenario]);
+
   const startSession = async () => {
     if (!apiKey) {
       alert('Please configure your Gemini API Key in Settings first.');
@@ -124,6 +152,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
     setTranscript([]);
     setReport(null);
     setSuggestions([]);
+    lastSuggestedTurnIdRef.current = null;
     if (mode === 'missions' && selectedScenario && suggestionsMode === 'auto') {
       setIsLoadingSuggestions(true);
       evalService.generateSpeakingSuggestions([], selectedScenario, defaultLevel, apiKey)
@@ -156,12 +185,16 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
               }
             });
           }
-          const updatedTranscript = [...prev.slice(0, -1), { ...last, id: last.id + '-done' }];
+          const baseId = last.id.replace('-done', '');
+          const updatedTranscript = [...prev.slice(0, -1), { ...last, id: baseId + '-done' }];
           if (mode === 'missions' && selectedScenario && turn.speaker === 'ai' && suggestionsMode === 'auto') {
-            setIsLoadingSuggestions(true);
-            evalService.generateSpeakingSuggestions(updatedTranscript, selectedScenario, defaultLevel, apiKey)
-              .then(s => setSuggestions(s))
-              .finally(() => setIsLoadingSuggestions(false));
+            if (!lastSuggestedTurnIdRef.current || lastSuggestedTurnIdRef.current !== baseId) {
+              lastSuggestedTurnIdRef.current = baseId;
+              setIsLoadingSuggestions(true);
+              evalService.generateSpeakingSuggestions(updatedTranscript, selectedScenario, defaultLevel, apiKey)
+                .then(s => setSuggestions(s))
+                .finally(() => setIsLoadingSuggestions(false));
+            }
           }
           return updatedTranscript;
         });
@@ -238,6 +271,8 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
         personaId: selectedPersona,
         jlptLevel: defaultLevel,
         transcript,
+        scenarioId: mode === 'missions' && selectedScenario ? selectedScenario.id : undefined,
+        scenarioTitle: mode === 'missions' && selectedScenario ? selectedScenario.title : undefined,
       });
     }
   };
@@ -275,6 +310,8 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
         jlptLevel: defaultLevel,
         transcript,
         feedbackReport: rep,
+        scenarioId: mode === 'missions' && selectedScenario ? selectedScenario.id : undefined,
+        scenarioTitle: mode === 'missions' && selectedScenario ? selectedScenario.title : undefined,
       });
     } catch (err) {
       console.error(err);
@@ -484,6 +521,10 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
                   💡 Stuck? Click to Generate Response Suggestions
                 </button>
               </div>
+            )}
+
+            {suggestionsMode === 'auto' && suggestions.length === 0 && !isLoadingSuggestions && transcript.length > 0 && (
+              <div className="text-xs text-slate-400 italic py-2 text-center">Could not load suggestions right now. Speak naturally when ready!</div>
             )}
 
             {suggestions.length > 0 && (

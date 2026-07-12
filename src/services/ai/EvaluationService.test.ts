@@ -325,5 +325,37 @@ describe('EvaluationService', () => {
       })
     );
   });
+
+  it('enforces a 6-second timeout and returns empty array if suggestions request times out', async () => {
+    vi.useFakeTimers();
+    const service = new EvaluationService();
+    const mockGenerateContent = vi.fn().mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 10000)));
+
+    const mockAiClient = {
+      models: {
+        generateContent: mockGenerateContent,
+      },
+    };
+
+    const promise = service.generateSpeakingSuggestionsWithClient(
+      mockAiClient as any,
+      [{ id: 't1', speaker: 'ai', text: '何名様でしょうか？', timestamp: 1000 }],
+      {
+        id: 'izakaya_reserve',
+        title: 'Reserving an Izakaya Table',
+        category: 'dining',
+        goalDescription: 'Reserve for 5.',
+        userRole: 'Customer',
+        aiRole: 'Host',
+      },
+      'N4'
+    );
+
+    vi.advanceTimersByTime(6000);
+    const result = await promise;
+    expect(result).toEqual([]);
+    vi.useRealTimers();
+  });
 });
+
 

@@ -301,14 +301,19 @@ Provide exactly 2 to 3 natural, highly authentic Japanese response options that 
         },
       };
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.5-flash',
-        contents: prompt,
-        config: {
-          responseMimeType: 'application/json',
-          responseSchema,
-        },
-      });
+      const response = await Promise.race([
+        ai.models.generateContent({
+          model: 'gemini-3.5-flash',
+          contents: prompt,
+          config: {
+            responseMimeType: 'application/json',
+            responseSchema,
+          },
+        }),
+        new Promise<any>((_, reject) =>
+          setTimeout(() => reject(new Error('Suggestions request timed out after 6000ms')), 6000)
+        ),
+      ]);
 
       const jsonText = typeof response.text === 'function' ? (response.text as () => string)() : response.text;
       if (!jsonText) return [];

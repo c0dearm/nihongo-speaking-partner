@@ -64,4 +64,27 @@ describe('DashboardView', () => {
     expect(screen.getByText(/Mission Success Rate/i)).toBeInTheDocument();
     expect(screen.getByText('50%')).toBeInTheDocument(); // 1/2 achieved = 50%
   });
+
+  it('counts sessions with scenarioId in missionSessions even if feedbackReport is missing', async () => {
+    await repository.saveSession({
+      id: 'sess-mission-scenario-only',
+      timestamp: Date.now() - 5000,
+      durationSeconds: 120,
+      personaId: 'casual_friend',
+      jlptLevel: 'N4',
+      transcript: [],
+      scenarioId: 'izakaya_reserve',
+      scenarioTitle: 'Reserving an Izakaya Table',
+    });
+
+    render(
+      <SettingsProvider>
+        <DashboardView repository={repository} />
+      </SettingsProvider>
+    );
+
+    expect(await screen.findByText(/Roleplay Missions/i)).toBeInTheDocument();
+    expect(screen.getByText('1')).toBeInTheDocument();
+  });
 });
+

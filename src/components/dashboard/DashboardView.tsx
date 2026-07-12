@@ -32,7 +32,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ repository }) => {
     return <div className="p-8 text-center text-slate-400">Loading study dashboard...</div>;
   }
 
-  const missionSessions = sessions.filter((s) => Boolean(s.feedbackReport?.goalVerdict));
+  const missionSessions = sessions.filter((s) => Boolean(s.scenarioId || s.feedbackReport?.goalVerdict));
   const successfulMissions = missionSessions.filter(
     (s) =>
       s.feedbackReport?.goalVerdict?.status === 'ACHIEVED' ||

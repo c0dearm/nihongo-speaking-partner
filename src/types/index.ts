@@ -86,6 +86,8 @@ export interface SessionRecord {
   jlptLevel: JLPTLevel;
   transcript: ConversationTurn[];
   feedbackReport?: SessionReport;
+  scenarioId?: string;
+  scenarioTitle?: string;
 }
 
 export interface DrillPrompt {
