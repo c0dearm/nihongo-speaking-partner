@@ -17,6 +17,15 @@ describe('renderFurigana', () => {
     expect(rubies[1].querySelector('rt')?.textContent).toBe('よむ');
   });
 
+  it('renders ruby tags when furiganaEnabled is true for square brackets notation', () => {
+    const { container } = render(<div>{renderFurigana('電車[でんしゃ]が止[と]まった', true)}</div>);
+    const rubies = container.querySelectorAll('ruby');
+    expect(rubies).toHaveLength(2);
+    expect(rubies[0].textContent).toContain('電車');
+    expect(rubies[0].querySelector('rt')?.textContent).toBe('でんしゃ');
+    expect(rubies[1].querySelector('rt')?.textContent).toBe('と');
+  });
+
   it('renders existing ruby HTML strings when furiganaEnabled is true', () => {
     const { container } = render(
       <div>{renderFurigana('<ruby>電車<rt>でんしゃ</rt></ruby>が来た', true)}</div>

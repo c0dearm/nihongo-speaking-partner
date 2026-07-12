@@ -40,7 +40,7 @@ export const DrillStudioView: React.FC<DrillStudioViewProps> = ({ repository }) 
         setUserSpeechFurigana(furigana);
         setAnnotatingSpeech(false);
       });
-    }, 600);
+    }, 250);
     return () => {
       clearTimeout(timer);
       setAnnotatingSpeech(false);
