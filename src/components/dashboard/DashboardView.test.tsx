@@ -74,7 +74,7 @@ describe('DashboardView', () => {
       jlptLevel: 'N4',
       transcript: [],
       scenarioId: 'izakaya_reserve',
-      scenarioTitle: 'Reserving an Izakaya Table',
+      scenarioTitle: 'Izakaya Table Reservation',
     });
 
     render(

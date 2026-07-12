@@ -259,11 +259,11 @@ describe('EvaluationService', () => {
       'test-api-key',
       {
         id: 'izakaya_reserve',
-        title: 'Reserving an Izakaya Table',
+        title: 'Izakaya Table Reservation',
         category: 'dining',
-        goalDescription: 'Call an izakaya to reserve a table for 5 people for Saturday at 7pm under Tanaka.',
-        userRole: 'Customer calling the izakaya',
-        aiRole: 'Izakaya host taking reservations on the phone',
+        goalDescription: 'Call a busy izakaya to reserve a table for 4 people for Saturday at 7:30 PM under the name Tanaka.',
+        userRole: 'Customer calling to make a reservation',
+        aiRole: 'Busy izakaya host/hostess on the phone',
       }
     );
 

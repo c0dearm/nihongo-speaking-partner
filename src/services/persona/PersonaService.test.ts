@@ -28,16 +28,16 @@ describe('PersonaService', () => {
   it('injects roleplay mission goal and roles when a scenario is provided', () => {
     const instruction = service.buildSystemInstruction('casual_friend', 'N4', undefined, {
       id: 'n4-izakaya',
-      title: 'Reserving an Izakaya Table',
+      title: 'Izakaya Table Reservation',
       jlptLevel: 'N4',
       category: 'dining',
-      goalDescription: 'Reserve a table for 5 people for Saturday at 7pm under Tanaka.',
-      userRole: 'Customer calling the izakaya',
+      goalDescription: 'Call a busy izakaya to reserve a table for 4 people for Saturday at 7:30 PM under Tanaka.',
+      userRole: 'Customer calling to make a reservation',
       aiRole: 'Izakaya Host (Polite desu-masu)',
     });
     expect(instruction).toContain('You are roleplaying as: Izakaya Host (Polite desu-masu)');
-    expect(instruction).toContain('The user is roleplaying as: Customer calling the izakaya');
-    expect(instruction).toContain('The user\'s secret goal for this conversation is: Reserve a table for 5 people for Saturday at 7pm under Tanaka.');
+    expect(instruction).toContain('The user is roleplaying as: Customer calling to make a reservation');
+    expect(instruction).toContain('The user\'s secret goal for this conversation is: Call a busy izakaya to reserve a table for 4 people for Saturday at 7:30 PM under Tanaka.');
   });
 
   it('injects dynamic proficiency profile and real-time adaptation rules when adaptationMode is auto', () => {
