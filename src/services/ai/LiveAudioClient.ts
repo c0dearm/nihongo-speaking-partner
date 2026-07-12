@@ -7,6 +7,7 @@ export interface TurnEvent {
   speaker: 'user' | 'ai';
   text: string;
   interrupted?: boolean;
+  turnComplete?: boolean;
 }
 
 export class LiveAudioClient {
@@ -63,6 +64,8 @@ export class LiveAudioClient {
                 },
               },
             },
+            inputAudioTranscription: {},
+            outputAudioTranscription: {},
           },
           systemInstruction: {
             parts: [{ text: systemInstructionText }],
@@ -123,6 +126,25 @@ export class LiveAudioClient {
         }
       }
 
+      if (data.serverContent?.turnComplete) {
+        console.log('[LiveAudioClient] AI turn complete.');
+        if (this.onTurnEventCallback) {
+          this.onTurnEventCallback({ speaker: 'ai', text: '', turnComplete: true });
+        }
+      }
+
+      const inputTranscript = data.serverContent?.inputTranscription?.text || data.serverContent?.input_transcription?.text;
+      if (inputTranscript && this.onTurnEventCallback) {
+        console.log('[LiveAudioClient] User input transcription:', inputTranscript);
+        this.onTurnEventCallback({ speaker: 'user', text: inputTranscript });
+      }
+
+      const outputTranscript = data.serverContent?.outputTranscription?.text || data.serverContent?.output_transcription?.text;
+      if (outputTranscript && this.onTurnEventCallback) {
+        console.log('[LiveAudioClient] AI output transcription:', outputTranscript);
+        this.onTurnEventCallback({ speaker: 'ai', text: outputTranscript });
+      }
+
       const modelTurn = data.serverContent?.modelTurn;
       if (modelTurn?.parts) {
         for (const part of modelTurn.parts) {
@@ -130,7 +152,7 @@ export class LiveAudioClient {
             console.log('[LiveAudioClient] Received audio/pcm output chunk, bytes:', part.inlineData.data?.length);
             await this.player.enqueuePcm24k(part.inlineData.data);
           }
-          if (part.text && this.onTurnEventCallback) {
+          if (part.text && !outputTranscript && this.onTurnEventCallback) {
             console.log('[LiveAudioClient] Received text part:', part.text);
             this.onTurnEventCallback({ speaker: 'ai', text: part.text });
           }

@@ -67,21 +67,48 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
     client.onTurnEvent((turn) => {
       if (turn.text.startsWith('⚠️')) {
         setStatusMessage(turn.text);
+        return;
       } else if (turn.interrupted) {
         setStatusMessage('AI interrupted by user speaking.');
+        return;
+      } else if (turn.turnComplete) {
+        // Mark the latest turn as complete so new speech creates a new turn entry
+        setTranscript((prev) => {
+          if (prev.length === 0) return prev;
+          const last = prev[prev.length - 1];
+          return [...prev.slice(0, -1), { ...last, id: last.id + '-done' }];
+        });
+        return;
       } else if (turn.text) {
-        setStatusMessage(`AI speaking: "${turn.text.slice(0, 40)}..."`);
+        setStatusMessage(`${turn.speaker === 'user' ? 'You' : 'AI'} speaking: "${turn.text.slice(0, 40)}..."`);
       }
 
-      setTranscript((prev) => [
-        ...prev,
-        {
-          id: 'turn-' + Date.now() + '-' + Math.random(),
-          speaker: turn.speaker,
-          text: turn.text,
-          timestamp: Date.now(),
-        },
-      ]);
+      if (!turn.text.trim()) return;
+
+      setTranscript((prev) => {
+        if (prev.length > 0 && prev[prev.length - 1].speaker === turn.speaker && !prev[prev.length - 1].id.endsWith('-done')) {
+          const last = prev[prev.length - 1];
+          // If turn.text is a cumulative update that starts with or contains the old text
+          if (turn.text.startsWith(last.text) || turn.text.length >= last.text.length) {
+            return [...prev.slice(0, -1), { ...last, text: turn.text }];
+          }
+          // If old text already contains this chunk (duplicate), leave as is
+          if (last.text.includes(turn.text)) {
+            return prev;
+          }
+          // Otherwise, append chunk
+          return [...prev.slice(0, -1), { ...last, text: last.text + ' ' + turn.text }];
+        }
+        return [
+          ...prev,
+          {
+            id: 'turn-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+            speaker: turn.speaker,
+            text: turn.text,
+            timestamp: Date.now(),
+          },
+        ];
+      });
     });
 
     try {
