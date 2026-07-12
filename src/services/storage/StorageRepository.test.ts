@@ -346,4 +346,52 @@ describe('StorageRepository', () => {
     const customDrills = await repo.getCustomDrills();
     expect(customDrills.some(d => d.id === 'cd-1')).toBe(true);
   });
+
+  it('saveSession automatically updates totalMinutesPracticed and dailyStreak for new sessions without double-counting', async () => {
+    // 1. Initial user stats
+    await repo.updateUserStats({
+      dailyStreak: 3,
+      lastPracticeDate: new Date(Date.now() - 86400000).toISOString().slice(0, 10), // yesterday
+      totalMinutesPracticed: 30,
+      dailyGoalMinutes: 15,
+    });
+
+    const sessionId = 'session-stats-test-1';
+    const turn = { id: 'turn-1', speaker: 'user' as const, text: 'こんにちは', timestamp: Date.now() };
+
+    // 2. Save a new 120-second session (2 minutes)
+    await repo.saveSession({
+      id: sessionId,
+      timestamp: Date.now(),
+      durationSeconds: 120,
+      personaId: 'casual_friend',
+      jlptLevel: 'N4',
+      transcript: [turn],
+    });
+
+    const stats1 = await repo.getUserStats();
+    expect(stats1.totalMinutesPracticed).toBe(32); // 30 + 2
+    expect(stats1.dailyStreak).toBe(4); // 3 + 1 because yesterday was last practiced
+    expect(stats1.lastPracticeDate).toBe(new Date().toISOString().slice(0, 10));
+
+    // 3. Save the exact same session ID again (e.g. updating with feedback report)
+    await repo.saveSession({
+      id: sessionId,
+      timestamp: Date.now(),
+      durationSeconds: 120,
+      personaId: 'casual_friend',
+      jlptLevel: 'N4',
+      transcript: [turn],
+      feedbackReport: {
+        summary: 'Good job',
+        topGrammarCorrections: [],
+        naturalPhrasingTips: [],
+        estimatedLevel: 'N4',
+      },
+    });
+
+    const stats2 = await repo.getUserStats();
+    expect(stats2.totalMinutesPracticed).toBe(32); // unchanged! No double counting
+    expect(stats2.dailyStreak).toBe(4);
+  });
 });

@@ -54,7 +54,31 @@ export class StorageRepository {
   // Sessions CRUD
   async saveSession(session: SessionRecord): Promise<void> {
     const db = await this.dbPromise;
+    const existing = await db.get('sessions', session.id);
     await db.put('sessions', session);
+
+    if (!existing && session.durationSeconds > 0 && session.transcript.length > 0) {
+      const stats = await this.getUserStats();
+      const minutes = Math.max(1, Math.round(session.durationSeconds / 60));
+      const todayString = new Date(session.timestamp).toISOString().slice(0, 10);
+      let newStreak = stats.dailyStreak;
+
+      if (stats.lastPracticeDate !== todayString) {
+        const yesterday = new Date(session.timestamp - 86400000).toISOString().slice(0, 10);
+        if (stats.lastPracticeDate === yesterday) {
+          newStreak += 1;
+        } else {
+          newStreak = 1;
+        }
+      }
+
+      await this.updateUserStats({
+        ...stats,
+        dailyStreak: newStreak,
+        lastPracticeDate: todayString,
+        totalMinutesPracticed: stats.totalMinutesPracticed + minutes,
+      });
+    }
   }
 
   async getSessions(): Promise<SessionRecord[]> {
