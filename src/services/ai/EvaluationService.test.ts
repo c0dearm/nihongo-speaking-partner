@@ -248,4 +248,82 @@ describe('EvaluationService', () => {
       })
     );
   });
+
+  it('generates turn-by-turn speaking suggestions for a roleplay mission using gemini-3.5-flash', async () => {
+    const service = new EvaluationService();
+    const suggestions = await service.generateSpeakingSuggestions(
+      [
+        { id: 't1', speaker: 'ai', text: 'いらっしゃいませ！何名様でしょうか？', timestamp: Date.now() - 5000 },
+      ],
+      {
+        id: 'izakaya_reserve',
+        title: 'Reserving an Izakaya Table',
+        category: 'dining',
+        goalDescription: 'Call an izakaya to reserve a table for 5 people for Saturday at 7pm under Tanaka.',
+        userRole: 'Customer calling the izakaya',
+        aiRole: 'Izakaya host taking reservations on the phone',
+      },
+      'N4',
+      'test-api-key'
+    );
+
+    expect(Array.isArray(suggestions)).toBe(true);
+    expect(suggestions.length).toBeGreaterThanOrEqual(2);
+    expect(suggestions[0]).toHaveProperty('japanese');
+    expect(suggestions[0]).toHaveProperty('furigana');
+    expect(suggestions[0]).toHaveProperty('english');
+    expect(suggestions[0]).toHaveProperty('tip');
+  });
+
+  it('generateSpeakingSuggestions calls generateSpeakingSuggestionsWithClient with structured schema when using real apiKey', async () => {
+    const service = new EvaluationService();
+    const mockSuggestionsJson = JSON.stringify([
+      {
+        japanese: '予約をお願いします。',
+        furigana: '予約[よやく]をお願[ねが]いします。',
+        english: 'I would like to make a reservation, please.',
+        tip: 'Simple reservation request.',
+      },
+    ]);
+
+    const mockGenerateContent = vi.fn().mockResolvedValue({
+      text: () => mockSuggestionsJson,
+    });
+
+    const mockAiClient = {
+      models: {
+        generateContent: mockGenerateContent,
+      },
+    };
+
+    const result = await service.generateSpeakingSuggestionsWithClient(
+      mockAiClient as any,
+      [{ id: 't1', speaker: 'ai', text: '何名様でしょうか？', timestamp: 1000 }],
+      {
+        id: 'izakaya_reserve',
+        title: 'Reserving an Izakaya Table',
+        category: 'dining',
+        goalDescription: 'Reserve for 5.',
+        userRole: 'Customer',
+        aiRole: 'Host',
+      },
+      'N4'
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0].japanese).toBe('予約をお願いします。');
+    expect(mockGenerateContent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: 'gemini-3.5-flash',
+        contents: expect.stringContaining('AI Partner: 何名様でしょうか？'),
+        config: expect.objectContaining({
+          responseMimeType: 'application/json',
+          responseSchema: expect.objectContaining({
+            type: 'ARRAY',
+          }),
+        }),
+      })
+    );
+  });
 });
+
