@@ -235,12 +235,12 @@ describe('LivePartnerView', () => {
     const modeBtn = screen.getByRole('button', { name: /Goal-Oriented Roleplay Missions/i });
     fireEvent.click(modeBtn);
 
-    const cards = await screen.findAllByText(/Reserving an Izakaya Table/i);
+    const cards = await screen.findAllByText(/Izakaya Table Reservation/i);
     expect(cards.length).toBeGreaterThan(0);
     fireEvent.click(cards[0]);
 
     expect(await screen.findByText(/Current Mission Goal/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Customer calling the izakaya/i)[0]).toBeInTheDocument();
+    expect(screen.getAllByText(/Customer calling to make a reservation/i)[0]).toBeInTheDocument();
 
     const startBtn = screen.getByText(/Start Live Roleplay Mission/i);
     fireEvent.click(startBtn);
@@ -251,8 +251,8 @@ describe('LivePartnerView', () => {
         expect.any(String),
         expect.any(String),
         expect.objectContaining({
-          title: 'Reserving an Izakaya Table',
-          goalDescription: expect.stringContaining('Call an izakaya to reserve a table for 5 people'),
+          title: 'Izakaya Table Reservation',
+          goalDescription: expect.stringContaining('Call a busy izakaya to reserve a table for 4 people'),
         }),
         expect.any(Object),
         expect.any(String)
@@ -349,7 +349,7 @@ describe('LivePartnerView', () => {
 
     // Switch to missions mode
     fireEvent.click(screen.getByRole('button', { name: /Goal-Oriented Roleplay Missions/i }));
-    expect(await screen.findByText(/Reserving an Izakaya Table/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Izakaya Table Reservation/i)).toBeInTheDocument();
 
     // Verify suggestions mode chip in header
     expect(screen.getByText(/Hints: AUTO/i)).toBeInTheDocument();
@@ -374,7 +374,7 @@ describe('LivePartnerView', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: /Goal-Oriented Roleplay Missions/i }));
-    expect(await screen.findByText(/Reserving an Izakaya Table/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Izakaya Table Reservation/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByText(/Start Live Roleplay Mission/i));
 
@@ -432,7 +432,7 @@ describe('LivePartnerView', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: /Goal-Oriented Roleplay Missions/i }));
-    expect(await screen.findByText(/Reserving an Izakaya Table/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Izakaya Table Reservation/i)).toBeInTheDocument();
     fireEvent.click(screen.getByText(/Start Live Roleplay Mission/i));
 
     await waitFor(() => {
@@ -462,7 +462,7 @@ describe('LivePartnerView', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: /Goal-Oriented Roleplay Missions/i }));
-    const izakayaCards = await screen.findAllByText(/Reserving an Izakaya Table/i);
+    const izakayaCards = await screen.findAllByText(/Izakaya Table Reservation/i);
     fireEvent.click(izakayaCards[0]);
     fireEvent.click(screen.getByText(/Start Live Roleplay Mission/i));
 
@@ -480,7 +480,7 @@ describe('LivePartnerView', () => {
       expect(saveSessionSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           scenarioId: 'izakaya_reserve',
-          scenarioTitle: 'Reserving an Izakaya Table',
+          scenarioTitle: 'Izakaya Table Reservation',
         })
       );
     });
@@ -495,7 +495,7 @@ describe('LivePartnerView', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: /Goal-Oriented Roleplay Missions/i }));
-    expect(await screen.findByText(/Reserving an Izakaya Table/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Izakaya Table Reservation/i)).toBeInTheDocument();
 
     // Set suggestions mode to 'manual' before starting
     fireEvent.click(screen.getByText(/Hints: AUTO/i)); // Toggle to manual
@@ -525,7 +525,7 @@ describe('LivePartnerView', () => {
     );
 
     // Should render mission selection deck by default
-    expect(await screen.findByText(/Reserving an Izakaya Table/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Izakaya Table Reservation/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Goal-Oriented Roleplay Missions/i })).toHaveClass('bg-indigo-600');
   });
 
@@ -761,11 +761,11 @@ describe('LivePartnerView', () => {
 
     // 2. Verify level-agnostic missions without jlptLevel do not render empty spans
     // Wait for scenario cards to render from async useEffect
-    await screen.findAllByText(/Reserving an Izakaya Table|Ordering at an Izakaya|Ordering Lunch at a Diner/i);
+    await screen.findAllByText(/Izakaya Table Reservation|Convenience Store \(Konbini\) Checkout|Doctor's Clinic Visit/i);
     const missionCards = screen.getAllByRole('button').filter((btn) =>
-      btn.textContent?.includes('Ordering at an Izakaya') ||
-      btn.textContent?.includes('Reserving an Izakaya Table') ||
-      btn.textContent?.includes('Ordering Lunch at a Diner')
+      btn.textContent?.includes('Izakaya Table Reservation') ||
+      btn.textContent?.includes('Convenience Store (Konbini) Checkout') ||
+      btn.textContent?.includes('Doctor\'s Clinic Visit')
     );
     expect(missionCards.length).toBeGreaterThanOrEqual(1);
     const izakayaCard = missionCards[0];

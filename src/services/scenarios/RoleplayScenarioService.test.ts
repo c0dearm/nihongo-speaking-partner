@@ -11,16 +11,31 @@ describe('RoleplayScenarioService', () => {
     service = new RoleplayScenarioService(repository);
   });
 
-  it('returns all scenarios or filters by category cleanly without requiring jlptLevel', async () => {
+  it('returns all 10 curated scenarios spanning all 5 categories and checks specific IDs', async () => {
     const all = await service.getAllScenarios();
-    expect(all.length).toBeGreaterThanOrEqual(5);
+    expect(all.length).toBeGreaterThanOrEqual(10);
 
-    const dining = await service.getScenariosByCategory('dining');
-    expect(dining.length).toBeGreaterThanOrEqual(2);
-    expect(dining.every(s => s.category === 'dining')).toBe(true);
+    const categories = new Set(all.map(s => s.category));
+    expect(categories.has('daily_life')).toBe(true);
+    expect(categories.has('emergency')).toBe(true);
+    expect(categories.has('travel')).toBe(true);
+    expect(categories.has('dining')).toBe(true);
+    expect(categories.has('business')).toBe(true);
+
+    const ids = new Set(all.map(s => s.id));
+    expect(ids.has('konbini_checkout')).toBe(true);
+    expect(ids.has('doctor_visit')).toBe(true);
+    expect(ids.has('hotel_checkin')).toBe(true);
+    expect(ids.has('izakaya_reserve')).toBe(true);
+    expect(ids.has('friend_chitchat')).toBe(true);
+    expect(ids.has('host_family_breakfast')).toBe(true);
+    expect(ids.has('sensei_homework')).toBe(true);
+    expect(ids.has('business_meeting')).toBe(true);
+    expect(ids.has('lost_property')).toBe(true);
+    expect(ids.has('train_directions')).toBe(true);
   });
 
-  it('saves and retrieves level-agnostic custom scenarios', async () => {
+  it('saves and retrieves level-agnostic custom scenarios alongside curated ones', async () => {
     const created = await service.createCustomScenario(
       'Buying a train ticket to Kyoto',
       'travel',
