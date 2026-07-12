@@ -255,6 +255,10 @@ Text to annotate: "${trimmed}"`;
     ];
   }
 
+  /**
+   * Generates speaking suggestions for the user's next turn.
+   * When `scenario` is `undefined`, it generates Free Open-Ended Chat suggestions using `personaId`.
+   */
   async generateSpeakingSuggestions(
     transcript: ConversationTurn[],
     targetLevel: JLPTLevel,
@@ -265,6 +269,22 @@ Text to annotate: "${trimmed}"`;
     if (!apiKey || apiKey === 'test-api-key') {
       if (transcript.length === 0) {
         return this.getKickstartSuggestions();
+      }
+      if (!scenario) {
+        return [
+          {
+            japanese: '最近、どんな映画や音楽に興味がありますか？',
+            furigana: '最近[さいきん]、どんな映画[えいが]や音楽[おんがく]に興味[きょうみ]がありますか？',
+            english: 'What kind of movies or music are you interested in recently?',
+            tip: 'A natural open-ended question to steer the casual conversation.',
+          },
+          {
+            japanese: '週末はいつもどのように過ごしていますか？',
+            furigana: '週末[しゅうまつ]はいつもどのように過[す]ごしていますか？',
+            english: 'How do you usually spend your weekends?',
+            tip: 'Ask about daily routines or hobbies to keep the conversation flowing smoothly.',
+          },
+        ];
       }
       return [
         {
@@ -291,6 +311,10 @@ Text to annotate: "${trimmed}"`;
     }
   }
 
+  /**
+   * Generates speaking suggestions using a provided GoogleGenAI client instance.
+   * When `scenario` is `undefined`, it generates Free Open-Ended Chat suggestions using `personaId`.
+   */
   async generateSpeakingSuggestionsWithClient(
     ai: GoogleGenAI,
     transcript: ConversationTurn[],

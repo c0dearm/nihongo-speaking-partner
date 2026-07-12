@@ -275,6 +275,23 @@ describe('EvaluationService', () => {
     expect(suggestions[0]).toHaveProperty('tip');
   });
 
+  it('generateSpeakingSuggestions returns free-chat mock suggestions when test-api-key is used and scenario is undefined', async () => {
+    const service = new EvaluationService();
+    const suggestions = await service.generateSpeakingSuggestions(
+      [
+        { id: 't1', speaker: 'ai', text: 'こんにちは！何について話しましょうか？', timestamp: Date.now() - 5000 },
+      ],
+      'N4',
+      'test-api-key',
+      undefined
+    );
+
+    expect(Array.isArray(suggestions)).toBe(true);
+    expect(suggestions).toHaveLength(2);
+    expect(suggestions[0].japanese).toBe('最近、どんな映画や音楽に興味がありますか？');
+    expect(suggestions[1].japanese).toBe('週末はいつもどのように過ごしていますか？');
+  });
+
   it('generateSpeakingSuggestions calls generateSpeakingSuggestionsWithClient with structured schema when using real apiKey', async () => {
     const service = new EvaluationService();
     const mockSuggestionsJson = JSON.stringify([

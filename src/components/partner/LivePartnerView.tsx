@@ -110,6 +110,11 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
   }, [transcript, furiganaEnabled, apiKey]);
 
   const prevSuggestionsModeRef = useRef<string>(suggestionsMode);
+  const latestStateRef = useRef({ selectedPersona, defaultLevel, apiKey, transcript });
+
+  useEffect(() => {
+    latestStateRef.current = { selectedPersona, defaultLevel, apiKey, transcript };
+  });
 
   useEffect(() => {
     const prevMode = prevSuggestionsModeRef.current;
@@ -123,13 +128,14 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
       suggestions.length === 0 &&
       !isLoadingSuggestions
     ) {
+      const { selectedPersona, defaultLevel, apiKey, transcript } = latestStateRef.current;
       if (transcript.length > 0) {
         const lastTurn = transcript[transcript.length - 1];
         lastSuggestedTurnIdRef.current = lastTurn.id.replace('-done', '');
       }
       setIsLoadingSuggestions(true);
       evalService
-        .generateSpeakingSuggestions(transcript, defaultLevel, apiKey, mode === 'missions' ? (selectedScenario || undefined) : undefined, selectedPersona)
+        .generateSpeakingSuggestions(transcript, defaultLevel, apiKey, mode === 'missions' && selectedScenario ? selectedScenario : undefined, selectedPersona)
         .then((s) => setSuggestions(s))
         .finally(() => setIsLoadingSuggestions(false));
     }
@@ -154,7 +160,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
     lastSuggestedTurnIdRef.current = null;
     if ((mode === 'free' || Boolean(selectedScenario)) && suggestionsMode === 'auto') {
       setIsLoadingSuggestions(true);
-      evalService.generateSpeakingSuggestions([], defaultLevel, apiKey, mode === 'missions' ? (selectedScenario || undefined) : undefined, selectedPersona)
+      evalService.generateSpeakingSuggestions([], defaultLevel, apiKey, mode === 'missions' && selectedScenario ? selectedScenario : undefined, selectedPersona)
         .then(s => setSuggestions(s))
         .finally(() => setIsLoadingSuggestions(false));
     }
@@ -190,7 +196,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
             if (!lastSuggestedTurnIdRef.current || lastSuggestedTurnIdRef.current !== baseId) {
               lastSuggestedTurnIdRef.current = baseId;
               setIsLoadingSuggestions(true);
-              evalService.generateSpeakingSuggestions(updatedTranscript, defaultLevel, apiKey, mode === 'missions' ? (selectedScenario || undefined) : undefined, selectedPersona)
+              evalService.generateSpeakingSuggestions(updatedTranscript, defaultLevel, apiKey, mode === 'missions' && selectedScenario ? selectedScenario : undefined, selectedPersona)
                 .then(s => setSuggestions(s))
                 .finally(() => setIsLoadingSuggestions(false));
             }
@@ -280,7 +286,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
     if (mode === 'missions' && !selectedScenario) return;
     setIsLoadingSuggestions(true);
     try {
-      const s = await evalService.generateSpeakingSuggestions(transcript, defaultLevel, apiKey, mode === 'missions' ? (selectedScenario || undefined) : undefined, selectedPersona);
+      const s = await evalService.generateSpeakingSuggestions(transcript, defaultLevel, apiKey, mode === 'missions' && selectedScenario ? selectedScenario : undefined, selectedPersona);
       setSuggestions(s);
     } finally {
       setIsLoadingSuggestions(false);

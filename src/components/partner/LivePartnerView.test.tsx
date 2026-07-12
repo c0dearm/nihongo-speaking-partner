@@ -39,20 +39,38 @@ const mockGenerateSessionReport = vi.fn().mockResolvedValue({
   estimatedLevel: 'N4',
 });
 
-const mockGenerateSpeakingSuggestions = vi.fn().mockResolvedValue([
-  {
-    japanese: 'すみません、土曜日の夜７時に５人で予約したいのですが。',
-    furigana: 'すみません、土曜日[どようび]の夜[よる]７時[しちじ]に５人[ごにん]で予約[よやく]したいのですが。',
-    english: 'Excuse me, I would like to make a reservation for 5 people on Saturday evening at 7.',
-    tip: 'A polite, natural sentence using ~たいのですが to clearly state your reservation request.',
-  },
-  {
-    japanese: '土曜日の午後７時は空いていますか？田中と申します。',
-    furigana: '土曜日[どようび]の午後[ごご]７時[しちじ]は空[あ]いていますか？田中[たなか]と申[もう]します。',
-    english: 'Do you have availability for Saturday at 7 PM? My name is Tanaka.',
-    tip: 'Ask about table availability directly while politely stating your last name with ~と申します.',
-  },
-]);
+const mockGenerateSpeakingSuggestions = vi.fn().mockImplementation((_transcript, _targetLevel, _apiKey, scenario) => {
+  if (!scenario) {
+    return Promise.resolve([
+      {
+        japanese: '最近、どんな映画や音楽に興味がありますか？',
+        furigana: '最近[さいきん]、どんな映画[えいが]や音楽[おんがく]に興味[きょうみ]がありますか？',
+        english: 'What kind of movies or music are you interested in recently?',
+        tip: 'A natural open-ended question to steer the casual conversation.',
+      },
+      {
+        japanese: '週末はいつもどのように過ごしていますか？',
+        furigana: '週末[しゅうまつ]はいつもどのように過[す]ごしていますか？',
+        english: 'How do you usually spend your weekends?',
+        tip: 'Ask about daily routines or hobbies to keep the conversation flowing smoothly.',
+      },
+    ]);
+  }
+  return Promise.resolve([
+    {
+      japanese: 'すみません、土曜日の夜７時に５人で予約したいのですが。',
+      furigana: 'すみません、土曜日[どようび]の夜[よる]７時[しちじ]に５人[ごにん]で予約[よやく]したいのですが。',
+      english: 'Excuse me, I would like to make a reservation for 5 people on Saturday evening at 7.',
+      tip: 'A polite, natural sentence using ~たいのですが to clearly state your reservation request.',
+    },
+    {
+      japanese: '土曜日の午後７時は空いていますか？田中と申します。',
+      furigana: '土曜日[どようび]の午後[ごご]７時[しちじ]は空[あ]いていますか？田中[たなか]と申[もう]します。',
+      english: 'Do you have availability for Saturday at 7 PM? My name is Tanaka.',
+      tip: 'Ask about table availability directly while politely stating your last name with ~と申します.',
+    },
+  ]);
+});
 
 const mockGenerateFurigana = vi.fn().mockImplementation((text) => Promise.resolve(text));
 
@@ -347,20 +365,38 @@ describe('LivePartnerView', () => {
     expect(await screen.findByText(/Could not load suggestions right now\. Speak naturally when ready!/i)).toBeInTheDocument();
 
     // Reset default mock value for subsequent tests
-    mockGenerateSpeakingSuggestions.mockResolvedValue([
-      {
-        japanese: 'すみません、土曜日の夜７時に５人で予約したいのですが。',
-        furigana: 'すみません、土曜日[どようび]の夜[よる]７時[しちじ]に５人[ごにん]で予約[よやく]したいのですが。',
-        english: 'Excuse me, I would like to make a reservation for 5 people on Saturday evening at 7.',
-        tip: 'A polite, natural sentence using ~たいのですが to clearly state your reservation request.',
-      },
-      {
-        japanese: '土曜日の午後７時は空いていますか？田中と申します。',
-        furigana: '土曜日[どようび]の午後[ごご]７時[しちじ]は空[あ]いていますか？田中[たなか]と申[もう]します。',
-        english: 'Do you have availability for Saturday at 7 PM? My name is Tanaka.',
-        tip: 'Ask about table availability directly while politely stating your last name with ~と申します.',
-      },
-    ]);
+    mockGenerateSpeakingSuggestions.mockImplementation((_transcript, _targetLevel, _apiKey, scenario) => {
+      if (!scenario) {
+        return Promise.resolve([
+          {
+            japanese: '最近、どんな映画や音楽に興味がありますか？',
+            furigana: '最近[さいきん]、どんな映画[えいが]や音楽[おんがく]に興味[きょうみ]がありますか？',
+            english: 'What kind of movies or music are you interested in recently?',
+            tip: 'A natural open-ended question to steer the casual conversation.',
+          },
+          {
+            japanese: '週末はいつもどのように過ごしていますか？',
+            furigana: '週末[しゅうまつ]はいつもどのように過[す]ごしていますか？',
+            english: 'How do you usually spend your weekends?',
+            tip: 'Ask about daily routines or hobbies to keep the conversation flowing smoothly.',
+          },
+        ]);
+      }
+      return Promise.resolve([
+        {
+          japanese: 'すみません、土曜日の夜７時に５人で予約したいのですが。',
+          furigana: 'すみません、土曜日[どようび]の夜[よる]７時[しちじ]に５人[ごにん]で予約[よやく]したいのですが。',
+          english: 'Excuse me, I would like to make a reservation for 5 people on Saturday evening at 7.',
+          tip: 'A polite, natural sentence using ~たいのですが to clearly state your reservation request.',
+        },
+        {
+          japanese: '土曜日の午後７時は空いていますか？田中と申します。',
+          furigana: '土曜日[どようび]の午後[ごご]７時[しちじ]は空[あ]いていますか？田中[たなか]と申[もう]します。',
+          english: 'Do you have availability for Saturday at 7 PM? My name is Tanaka.',
+          tip: 'Ask about table availability directly while politely stating your last name with ~と申します.',
+        },
+      ]);
+    });
   });
 
   it('deduplicates speaking suggestion requests for the same turn id', async () => {
@@ -490,7 +526,7 @@ describe('LivePartnerView', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/What You Could Say Next/i)).toBeInTheDocument();
-      expect(screen.getByText(/Excuse me, I would like to make a reservation/i)).toBeInTheDocument(); // mock suggestion string
+      expect(screen.getByText(/What kind of movies or music are you interested in recently/i)).toBeInTheDocument(); // mock suggestion string for free chat
     });
   });
 });
