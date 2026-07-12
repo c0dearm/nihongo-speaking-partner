@@ -57,10 +57,19 @@ export interface SessionReport {
   };
 }
 
+export type SuggestionsMode = 'auto' | 'manual' | 'off';
+
+export interface SpeakingSuggestion {
+  japanese: string;
+  furigana: string;
+  english: string;
+  tip: string;
+}
+
 export interface RoleplayScenario {
   id: string;
   title: string;
-  jlptLevel: JLPTLevel;
+  jlptLevel?: JLPTLevel;
   category: 'dining' | 'travel' | 'business' | 'daily_life' | 'emergency';
   goalDescription: string;
   userRole: string;
