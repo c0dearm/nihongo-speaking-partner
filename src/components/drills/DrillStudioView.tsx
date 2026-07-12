@@ -5,6 +5,7 @@ import { EvaluationService } from '../../services/ai/EvaluationService';
 import { DrillPrompt, JLPTLevel, SpeakingAssessment } from '../../types';
 import { useSettings } from '../../context/SettingsContext';
 import { CreateCustomDrillModal } from './CreateCustomDrillModal';
+import { renderFurigana } from '../../utils/furigana';
 import { Plus, Sparkles, BookPlus, Mic, MicOff } from 'lucide-react';
 
 interface DrillStudioViewProps {
@@ -12,7 +13,7 @@ interface DrillStudioViewProps {
 }
 
 export const DrillStudioView: React.FC<DrillStudioViewProps> = ({ repository }) => {
-  const { apiKey, defaultLevel } = useSettings();
+  const { apiKey, defaultLevel, furiganaEnabled, setFuriganaEnabled } = useSettings();
   const [selectedLevel, setSelectedLevel] = useState<JLPTLevel>(defaultLevel);
   const [drills, setDrills] = useState<DrillPrompt[]>([]);
   const [selectedDrill, setSelectedDrill] = useState<DrillPrompt | null>(null);
@@ -276,6 +277,21 @@ export const DrillStudioView: React.FC<DrillStudioViewProps> = ({ repository }) 
               </form>
             ) : (
               <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-indigo-400">Speaking Assessment</span>
+                  <button
+                    type="button"
+                    onClick={() => setFuriganaEnabled(!furiganaEnabled)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium border ${
+                      furiganaEnabled
+                        ? 'bg-indigo-900/50 border-indigo-500 text-indigo-300'
+                        : 'bg-slate-800 border-slate-700 text-slate-400'
+                    }`}
+                  >
+                    Furigana: {furiganaEnabled ? 'ON' : 'OFF'}
+                  </button>
+                </div>
+
                 <div className="grid grid-cols-3 gap-4">
                   <div className="bg-slate-950 p-4 rounded-lg text-center border border-slate-800">
                     <p className="text-xs text-slate-400">Overall Score</p>
@@ -293,11 +309,27 @@ export const DrillStudioView: React.FC<DrillStudioViewProps> = ({ repository }) 
 
                 <div className="space-y-2">
                   <p className="text-xs font-semibold text-slate-400">Native Recast (Better Phrasing):</p>
-                  <p className="text-base font-semibold text-emerald-400">
-                    {assessment.nativeRecast.japanese}
-                  </p>
+                  <div className="text-base font-semibold text-emerald-400 leading-relaxed">
+                    {renderFurigana(assessment.nativeRecast.furigana || assessment.nativeRecast.japanese, furiganaEnabled)}
+                  </div>
                   <p className="text-xs text-slate-400">{assessment.nativeRecast.english}</p>
                 </div>
+
+                {assessment.keyVocabulary && assessment.keyVocabulary.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-slate-400">Key Vocabulary:</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {assessment.keyVocabulary.map((vocab, i) => (
+                        <div key={i} className="bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-xs flex items-center justify-between">
+                          <span className="font-bold text-slate-200">
+                            {renderFurigana(`${vocab.word}(${vocab.reading})`, furiganaEnabled)}
+                          </span>
+                          <span className="text-slate-400">{vocab.meaning}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex justify-end gap-3">
                   <button

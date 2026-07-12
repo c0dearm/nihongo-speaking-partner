@@ -5,6 +5,7 @@ import { EvaluationService } from '../../services/ai/EvaluationService';
 import { LiveAudioClient } from '../../services/ai/LiveAudioClient';
 import { PersonaId, ConversationTurn, SessionReport, GrammarCorrection } from '../../types';
 import { useSettings } from '../../context/SettingsContext';
+import { renderFurigana } from '../../utils/furigana';
 import { WaveformVisualizer } from './WaveformVisualizer';
 import { Mic, PhoneOff, Sparkles, BookPlus, MessageSquare, X } from 'lucide-react';
 
@@ -72,10 +73,19 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
         setStatusMessage('AI interrupted by user speaking.');
         return;
       } else if (turn.turnComplete) {
-        // Mark the latest turn as complete so new speech creates a new turn entry
+        // Mark the latest turn as complete and fetch its furigana readings in the background
         setTranscript((prev) => {
           if (prev.length === 0) return prev;
           const last = prev[prev.length - 1];
+          if (apiKey && !last.furiganaText && last.text.trim()) {
+            evalService.generateFurigana(last.text, apiKey).then((furigana) => {
+              if (furigana && furigana !== last.text) {
+                setTranscript((cur) =>
+                  cur.map((t) => (t.id === last.id ? { ...t, furiganaText: furigana } : t))
+                );
+              }
+            });
+          }
           return [...prev.slice(0, -1), { ...last, id: last.id + '-done' }];
         });
         return;
@@ -303,9 +313,9 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
                 <p className="text-xs font-semibold text-slate-400 mb-1">
                   {t.speaker === 'user' ? 'You' : 'Speaking Partner'}
                 </p>
-                <p className="text-sm text-slate-100">
-                  {furiganaEnabled && t.furiganaText ? t.furiganaText : t.text}
-                </p>
+                <div className="text-sm text-slate-100 leading-relaxed">
+                  {renderFurigana(t.furiganaText || t.text, furiganaEnabled)}
+                </div>
               </div>
             ))}
           </div>
@@ -320,8 +330,8 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
                 <ul className="space-y-2">
                   {report.topGrammarCorrections.map((g, idx) => (
                     <li key={idx} className="text-sm bg-slate-900 p-3 rounded-lg border border-slate-800">
-                      <p className="text-rose-400 line-through">{g.originalPart}</p>
-                      <p className="text-emerald-400 font-semibold">{g.correctedPart}</p>
+                      <div className="text-rose-400 line-through">{renderFurigana(g.originalPart, furiganaEnabled)}</div>
+                      <div className="text-emerald-400 font-semibold">{renderFurigana(g.correctedPart, furiganaEnabled)}</div>
                       <p className="text-xs text-slate-400 mt-1">{g.explanation}</p>
                       <button
                         type="button"
@@ -386,9 +396,9 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
                     <p className="text-xs font-semibold text-slate-400 mb-1">
                       {t.speaker === 'user' ? 'You' : 'Speaking Partner'}
                     </p>
-                    <p className="text-sm text-slate-100">
-                      {furiganaEnabled && t.furiganaText ? t.furiganaText : t.text}
-                    </p>
+                    <div className="text-sm text-slate-100 leading-relaxed">
+                      {renderFurigana(t.furiganaText || t.text, furiganaEnabled)}
+                    </div>
                   </div>
                 ))
               )}

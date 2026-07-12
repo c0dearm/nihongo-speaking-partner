@@ -3,13 +3,14 @@ import { StorageRepository } from '../../services/storage/StorageRepository';
 import { NotebookItemRecord, JLPTLevel } from '../../types';
 import { Volume2, Trash2, CheckCircle, Search } from 'lucide-react';
 import { useSettings } from '../../context/SettingsContext';
+import { renderFurigana } from '../../utils/furigana';
 
 interface NotebookViewProps {
   repository: StorageRepository;
 }
 
 export const NotebookView: React.FC<NotebookViewProps> = ({ repository }) => {
-  const { furiganaEnabled } = useSettings();
+  const { furiganaEnabled, setFuriganaEnabled } = useSettings();
   const [items, setItems] = useState<NotebookItemRecord[]>([]);
   const [filterLevel, setFilterLevel] = useState<JLPTLevel | 'ALL'>('ALL');
   const [filterCategory, setFilterCategory] = useState<'ALL' | 'grammar' | 'vocabulary' | 'pronunciation'>('ALL');
@@ -58,11 +59,23 @@ export const NotebookView: React.FC<NotebookViewProps> = ({ repository }) => {
 
   return (
     <div className="max-w-5xl mx-auto py-8 px-4 space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-slate-100">Mistake & Vocabulary Notebook</h2>
-        <p className="text-sm text-slate-400">
-          Revisit and master your saved grammar corrections, natural phrasing recasts, and vocabulary.
-        </p>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-100">Mistake & Vocabulary Notebook</h2>
+          <p className="text-sm text-slate-400">Revisit and master your saved grammar corrections, natural phrasing recasts, and vocabulary.</p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setFuriganaEnabled(!furiganaEnabled)}
+          className={`px-4 py-2 rounded-full text-xs font-medium border transition-colors ${
+            furiganaEnabled
+              ? 'bg-indigo-900/50 border-indigo-500 text-indigo-300'
+              : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          Furigana: {furiganaEnabled ? 'ON' : 'OFF'}
+        </button>
       </div>
 
       <div className="flex flex-wrap items-center gap-4 bg-slate-900 border border-slate-800 rounded-xl p-4">
@@ -132,14 +145,14 @@ export const NotebookView: React.FC<NotebookViewProps> = ({ repository }) => {
 
                   <div>
                     <p className="text-xs text-slate-500">Your Attempt / Original:</p>
-                    <p className="text-sm text-rose-400 line-through">{item.originalText}</p>
+                    <div className="text-sm text-rose-400 line-through leading-relaxed">{renderFurigana(item.originalText, furiganaEnabled)}</div>
                   </div>
 
                   <div>
                     <p className="text-xs text-slate-500">Native Recast / Corrected:</p>
-                    <p className="text-lg font-semibold text-emerald-400">
-                      {furiganaEnabled && item.furiganaText ? item.furiganaText : item.correctedText}
-                    </p>
+                    <div className="text-lg font-semibold text-emerald-400 leading-relaxed">
+                      {renderFurigana(item.furiganaText || item.correctedText, furiganaEnabled)}
+                    </div>
                   </div>
 
                   <p className="text-sm text-slate-300 bg-slate-950/80 p-3 rounded-lg border border-slate-800/80">

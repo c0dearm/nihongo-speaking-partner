@@ -164,4 +164,27 @@ Provide an executive session feedback summary, top 3 grammar corrections from th
         : response.text) || '{}';
     return JSON.parse(rawText) as SessionReport;
   }
+
+  async generateFurigana(text: string, apiKey: string): Promise<string> {
+    const ai = this.getClient(apiKey);
+    return this.generateFuriganaWithClient(ai, text);
+  }
+
+  async generateFuriganaWithClient(ai: GoogleGenAI, text: string): Promise<string> {
+    if (!text.trim()) return text;
+    const prompt = `Add Japanese furigana readings to the following text using bracket format where each kanji word is followed by its reading in parentheses, for example: 漢字(かんじ)を読む(よむ). Only output the annotated text, nothing else.
+Text to annotate: "${text}"`;
+
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.5-flash',
+        contents: prompt,
+      });
+      const raw = typeof response.text === 'function' ? (response.text as () => string)() : response.text;
+      return raw ? raw.trim() : text;
+    } catch (e) {
+      console.error('Failed to generate furigana:', e);
+      return text;
+    }
+  }
 }
