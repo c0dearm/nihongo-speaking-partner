@@ -117,6 +117,15 @@ export interface UserStatsRecord {
   dailyGoalMinutes: number;
 }
 
+export type AdaptationMode = 'auto' | 'rigid';
+
+export interface ProficiencyProfile {
+  estimatedLevel: JLPTLevel;
+  recentStruggles: string[];
+  recentStrengths: string[];
+  totalPracticeMinutes: number;
+}
+
 export interface ExportDataPayload {
   version: number;
   exportedAt: number;
@@ -126,3 +135,4 @@ export interface ExportDataPayload {
   customDrills: DrillPrompt[];
   userStats: UserStatsRecord;
 }
+
