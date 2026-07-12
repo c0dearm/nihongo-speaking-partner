@@ -185,8 +185,40 @@ describe('LivePartnerView', () => {
         expect.objectContaining({
           title: 'Reserving an Izakaya Table',
           goalDescription: expect.stringContaining('Call an izakaya to reserve a table for 5 people'),
-        })
+        }),
+        expect.any(Object),
+        expect.any(String)
       );
     });
+  });
+
+  it('displays adaptation mode chip in studio and passes profile to LiveAudioClient when in auto mode', async () => {
+    render(
+      <SettingsProvider>
+        <LivePartnerView repository={repo} />
+      </SettingsProvider>
+    );
+
+    expect(screen.getByText(/Adaptive Mode: AUTO/i)).toBeInTheDocument();
+
+    const startBtn = screen.getByText(/Start Live Conversation/i);
+    fireEvent.click(startBtn);
+
+    await waitFor(() => {
+      expect(mockConnect).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(String),
+        expect.any(String),
+        undefined,
+        expect.objectContaining({
+          estimatedLevel: expect.any(String),
+          recentStruggles: expect.any(Array),
+        }),
+        'auto'
+      );
+    });
+
+    fireEvent.click(screen.getByText(/Adaptive Mode: AUTO/i));
+    expect(screen.getByText(/Rigid Mode: STRICT/i)).toBeInTheDocument();
   });
 });

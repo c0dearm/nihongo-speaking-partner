@@ -4,7 +4,8 @@ import { PersonaService } from '../../services/persona/PersonaService';
 import { EvaluationService } from '../../services/ai/EvaluationService';
 import { LiveAudioClient } from '../../services/ai/LiveAudioClient';
 import { RoleplayScenarioService } from '../../services/scenarios/RoleplayScenarioService';
-import { PersonaId, ConversationTurn, SessionReport, GrammarCorrection, RoleplayScenario } from '../../types';
+import { ProficiencyProfileService } from '../../services/ai/ProficiencyProfileService';
+import { PersonaId, ConversationTurn, SessionReport, GrammarCorrection, RoleplayScenario, ProficiencyProfile } from '../../types';
 import { useSettings } from '../../context/SettingsContext';
 import { renderFurigana } from '../../utils/furigana';
 import { WaveformVisualizer } from './WaveformVisualizer';
@@ -16,7 +17,7 @@ interface LivePartnerViewProps {
 }
 
 export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) => {
-  const { apiKey, defaultLevel, furiganaEnabled, setFuriganaEnabled } = useSettings();
+  const { apiKey, defaultLevel, furiganaEnabled, setFuriganaEnabled, adaptationMode, setAdaptationMode } = useSettings();
   const [mode, setMode] = useState<'free' | 'missions'>('free');
   const [selectedPersona, setSelectedPersona] = useState<PersonaId>('casual_friend');
   const [scenarios, setScenarios] = useState<RoleplayScenario[]>([]);
@@ -31,10 +32,12 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
   const [showDrawer, setShowDrawer] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string>('Ready to connect.');
+  const [profile, setProfile] = useState<ProficiencyProfile | null>(null);
 
   const personaService = new PersonaService();
   const evalService = new EvaluationService();
   const scenarioService = new RoleplayScenarioService(repository);
+  const profileService = new ProficiencyProfileService(repository);
   const clientRef = useRef<LiveAudioClient | null>(null);
   const sessionStartTimeRef = useRef<number>(Date.now());
   const currentSessionIdRef = useRef<string>('sess-' + Date.now());
@@ -57,6 +60,14 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
     };
     fetchScenarios();
   }, [defaultLevel, repository]);
+
+  useEffect(() => {
+    if (adaptationMode === 'auto') {
+      profileService.getProficiencyProfile(defaultLevel).then((prof) => setProfile(prof));
+    } else {
+      setProfile(null);
+    }
+  }, [adaptationMode, defaultLevel, repository]);
 
   useEffect(() => {
     if (!isConnected) {
@@ -165,11 +176,19 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
     });
 
     try {
+      let currentProfile = profile;
+      if (adaptationMode === 'auto') {
+        currentProfile = await profileService.getProficiencyProfile(defaultLevel);
+        setProfile(currentProfile);
+      }
+
       await client.connect(
         selectedPersona,
         defaultLevel,
         apiKey,
-        mode === 'missions' && selectedScenario ? selectedScenario : undefined
+        mode === 'missions' && selectedScenario ? selectedScenario : undefined,
+        adaptationMode === 'auto' ? (currentProfile || undefined) : undefined,
+        adaptationMode
       );
       setIsConnected(true);
       setStatusMessage(
@@ -258,33 +277,47 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository }) 
           </p>
         </div>
 
-        <div className="flex bg-slate-900 border border-slate-800 rounded-xl p-1 gap-1">
+        <div className="flex items-center flex-wrap gap-3">
           <button
             type="button"
-            disabled={isConnected}
-            onClick={() => setMode('free')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
-              mode === 'free'
-                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
-                : 'text-slate-400 hover:text-slate-200'
+            onClick={() => setAdaptationMode(adaptationMode === 'auto' ? 'rigid' : 'auto')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+              adaptationMode === 'auto'
+                ? 'bg-indigo-950/60 border-indigo-500/40 text-indigo-300 hover:bg-indigo-900/80'
+                : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
             }`}
           >
-            <MessageCircle className="w-4 h-4" />
-            Free Open-Ended Chat
+            {adaptationMode === 'auto' ? `🧠 Adaptive Mode: AUTO (${profile?.estimatedLevel || defaultLevel})` : `🔒 Rigid Mode: STRICT ${defaultLevel}`}
           </button>
-          <button
-            type="button"
-            disabled={isConnected}
-            onClick={() => setMode('missions')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
-              mode === 'missions'
-                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Target className="w-4 h-4" />
-            Goal-Oriented Roleplay Missions
-          </button>
+
+          <div className="flex bg-slate-900 border border-slate-800 rounded-xl p-1 gap-1">
+            <button
+              type="button"
+              disabled={isConnected}
+              onClick={() => setMode('free')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                mode === 'free'
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <MessageCircle className="w-4 h-4" />
+              Free Open-Ended Chat
+            </button>
+            <button
+              type="button"
+              disabled={isConnected}
+              onClick={() => setMode('missions')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                mode === 'missions'
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Target className="w-4 h-4" />
+              Goal-Oriented Roleplay Missions
+            </button>
+          </div>
         </div>
       </div>
 
