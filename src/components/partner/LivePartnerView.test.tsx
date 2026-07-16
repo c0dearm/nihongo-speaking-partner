@@ -256,7 +256,6 @@ describe('LivePartnerView', () => {
         }),
         expect.any(Object),
         expect.any(String),
-        expect.any(String),
         expect.any(String)
       );
     });
@@ -285,7 +284,6 @@ describe('LivePartnerView', () => {
           estimatedLevel: expect.any(String),
           recentStruggles: expect.any(Array),
         }),
-        'auto',
         'auto',
         'ai_first'
       );
@@ -804,17 +802,12 @@ describe('LivePartnerView', () => {
     });
   });
 
-  it('renders and toggles Speaking Speed and Initiator selectors in studio and drawer, and passes them to client.connect', async () => {
+  it('renders and toggles Initiator selector in studio and drawer, and passes it to client.connect', async () => {
     render(
       <SettingsProvider>
         <LivePartnerView repository={repo} />
       </SettingsProvider>
     );
-
-    const paceBtn = screen.getByText(/⏱️ Pace:/i);
-    expect(paceBtn).toBeInTheDocument();
-    fireEvent.click(paceBtn);
-    expect(screen.getByText(/⏱️ Pace: VERY_SLOW/i)).toBeInTheDocument();
 
     const initBtn = screen.getByText(/🗣️ Opens:/i);
     expect(initBtn).toBeInTheDocument();
@@ -835,7 +828,6 @@ describe('LivePartnerView', () => {
         expect.any(Object),
         expect.any(Object),
         'auto',
-        'very_slow',
         'user_first'
       );
     });
@@ -843,14 +835,6 @@ describe('LivePartnerView', () => {
     // Verify in drawer when connected
     fireEvent.click(screen.getByText(/Transcript Drawer/i));
     expect(await screen.findByText(/Live Transcript Drawer/i)).toBeInTheDocument();
-    const allPaceBtns = screen.getAllByText(/⏱️ Pace: VERY_SLOW/i);
-    expect(allPaceBtns.length).toBeGreaterThanOrEqual(2);
-    allPaceBtns.forEach((btnEl) => {
-      const btn = btnEl.closest('button')!;
-      expect(btn).toBeDisabled();
-      expect(btn).toHaveAttribute('title', 'Speed change will apply on next connection');
-    });
-
     const allInitBtns = screen.getAllByText(/🗣️ Opens: You First/i);
     expect(allInitBtns.length).toBeGreaterThanOrEqual(2);
     allInitBtns.forEach((btnEl) => {

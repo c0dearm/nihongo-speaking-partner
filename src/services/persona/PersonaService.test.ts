@@ -77,48 +77,6 @@ describe('PersonaService', () => {
     expect(prompt).not.toContain('DYNAMIC ADAPTIVE PROFICIENCY PROFILE');
   });
 
-  it('injects very slow pacing directive for N5/N4 in auto speaking speed mode', () => {
-    const service = new PersonaService();
-    const prompt = service.buildSystemInstruction(
-      'casual_friend',
-      'N4',
-      true,
-      undefined,
-      undefined,
-      'auto',
-      'auto'
-    );
-    expect(prompt).toContain('SPEAKING PACE & CADENCE: You MUST speak VERY SLOWLY and clearly with distinct, gentle pauses between words and clauses');
-  });
-
-  it('injects moderate pacing directive for N3 in auto speaking speed mode', () => {
-    const service = new PersonaService();
-    const prompt = service.buildSystemInstruction(
-      'casual_friend',
-      'N3',
-      true,
-      undefined,
-      undefined,
-      'auto',
-      'auto'
-    );
-    expect(prompt).toContain('SPEAKING PACE & CADENCE: Speak at a moderate, steady, and clear pace with distinct pauses');
-  });
-
-  it('injects override pacing directive when speakingSpeed is explicitly set', () => {
-    const service = new PersonaService();
-    const prompt = service.buildSystemInstruction(
-      'casual_friend',
-      'N1',
-      true,
-      undefined,
-      undefined,
-      'auto',
-      'very_slow'
-    );
-    expect(prompt).toContain('SPEAKING PACE & CADENCE: You MUST speak VERY SLOWLY and clearly with distinct, gentle pauses between words and clauses');
-  });
-
   it('injects conversation initiation directive when initiator is ai_first', () => {
     const service = new PersonaService();
     const prompt = service.buildSystemInstruction(
@@ -127,7 +85,6 @@ describe('PersonaService', () => {
       true,
       undefined,
       undefined,
-      'auto',
       'auto',
       'ai_first'
     );

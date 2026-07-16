@@ -28,8 +28,6 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
     setAdaptationMode,
     suggestionsMode,
     setSuggestionsMode,
-    speakingSpeed,
-    setSpeakingSpeed,
     initiator,
     setInitiator,
   } = useSettings();
@@ -56,13 +54,6 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
     if (suggestionsMode === 'auto') setSuggestionsMode('manual');
     else if (suggestionsMode === 'manual') setSuggestionsMode('off');
     else setSuggestionsMode('auto');
-  };
-
-  const toggleSpeakingSpeed = () => {
-    if (speakingSpeed === 'auto') setSpeakingSpeed('very_slow');
-    else if (speakingSpeed === 'very_slow') setSpeakingSpeed('slow');
-    else if (speakingSpeed === 'slow') setSpeakingSpeed('normal');
-    else setSpeakingSpeed('auto');
   };
 
   const toggleInitiator = () => {
@@ -397,7 +388,6 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
         mode === 'missions' && selectedScenario ? selectedScenario : undefined,
         adaptationMode === 'auto' ? (currentProfile || undefined) : undefined,
         adaptationMode,
-        speakingSpeed,
         initiator
       );
       setIsConnected(true);
@@ -609,16 +599,6 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
               }`}
             >
               💡 Hints: {suggestionsMode.toUpperCase()}
-            </button>
-
-            <button
-              type="button"
-              disabled={isConnected}
-              title={isConnected ? "Speed change will apply on next connection" : ""}
-              onClick={toggleSpeakingSpeed}
-              className="flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold border transition-all w-full sm:w-auto bg-indigo-950/40 border-indigo-500/30 text-indigo-300 hover:bg-indigo-900/60 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              ⏱️ Pace: {speakingSpeed.toUpperCase()}
             </button>
 
             <button
@@ -1001,19 +981,6 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
                   }`}
                 >
                   💡 Hints: {suggestionsMode.toUpperCase()}
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between pt-2 border-t border-slate-800/60">
-                <span className="text-xs text-slate-400">Speaking Pace</span>
-                <button
-                  type="button"
-                  disabled={isConnected}
-                  title={isConnected ? "Speed change will apply on next connection" : ""}
-                  onClick={toggleSpeakingSpeed}
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border transition-all bg-indigo-900/50 border-indigo-500 text-indigo-300 hover:bg-indigo-900/80 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  ⏱️ Pace: {speakingSpeed.toUpperCase()}
                 </button>
               </div>
 
