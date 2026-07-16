@@ -45,12 +45,12 @@ describe('LiveAudioClient', () => {
 
   beforeEach(() => {
     MockWebSocket.instances = [];
-    originalWebSocket = global.WebSocket;
-    (global as any).WebSocket = MockWebSocket;
+    originalWebSocket = globalThis.WebSocket;
+    (globalThis as any).WebSocket = MockWebSocket;
   });
 
   afterEach(() => {
-    (global as any).WebSocket = originalWebSocket;
+    (globalThis as any).WebSocket = originalWebSocket;
   });
 
   it('sends clientContent turn trigger upon setupComplete when initiator is ai_first', async () => {
