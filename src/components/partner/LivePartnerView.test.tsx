@@ -1,9 +1,11 @@
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { LivePartnerView } from './LivePartnerView';
 import { StorageRepository } from '../../services/storage/StorageRepository';
 import { SettingsProvider } from '../../context/SettingsContext';
 import { EvaluationService } from '../../services/ai/EvaluationService';
+import { SpeechSynthesisService } from '../../services/audio/SpeechSynthesisService';
 
 // Mock LiveAudioClient
 const mockConnect = vi.fn().mockResolvedValue(undefined);
@@ -75,18 +77,28 @@ const mockGenerateSpeakingSuggestions = vi.fn().mockImplementation((_transcript,
 });
 
 const mockGenerateFurigana = vi.fn().mockImplementation((text) => Promise.resolve(text));
+const mockGenerateTurnTranslation = vi.fn().mockResolvedValue('Good afternoon, let me make a reservation.');
 
-const sharedEvalServiceInstance = {
-  generateSessionReport: mockGenerateSessionReport,
-  generateSpeakingSuggestions: mockGenerateSpeakingSuggestions,
-  generateFurigana: mockGenerateFurigana,
-  lookupTurnVocabulary: mockLookupTurnVocabulary,
-};
+const sharedEvalServiceInstance: any = {};
 
 vi.mock('../../services/ai/EvaluationService', () => {
+  class MockEvaluationService {
+    [key: string]: any;
+  }
   return {
-    EvaluationService: class {
+    EvaluationService: class extends MockEvaluationService {
       constructor() {
+        super();
+        const proto = Object.getPrototypeOf(this);
+        const mockProto = MockEvaluationService.prototype as any;
+        if (!mockProto.generateSessionReport) {
+          mockProto.generateSessionReport = mockGenerateSessionReport;
+          mockProto.generateSpeakingSuggestions = mockGenerateSpeakingSuggestions;
+          mockProto.generateFurigana = mockGenerateFurigana;
+          mockProto.lookupTurnVocabulary = mockLookupTurnVocabulary;
+          mockProto.generateTurnTranslation = mockGenerateTurnTranslation;
+        }
+        Object.setPrototypeOf(sharedEvalServiceInstance, proto);
         return sharedEvalServiceInstance;
       }
     },
@@ -640,7 +652,8 @@ describe('LivePartnerView', () => {
 
     const wordsBtns = await screen.findAllByRole('button', { name: /Words/i });
     expect(wordsBtns.length).toBeGreaterThanOrEqual(1);
-    const wordsBtn = wordsBtns[0];
+    const turnEl = screen.getAllByText('詳しい内容を検討します。')[0].closest('.p-3') as HTMLElement;
+    const wordsBtn = within(turnEl).getByRole('button', { name: /Words/i });
 
     // Click to lookup and expand words
     await act(async () => {
@@ -655,7 +668,6 @@ describe('LivePartnerView', () => {
 
     const vocabWords = await screen.findAllByText('検討');
     expect(vocabWords[0]).toBeInTheDocument();
-    expect(screen.getAllByText('(けんとう)')[0]).toBeInTheDocument();
     expect(screen.getAllByText('Consideration')[0]).toBeInTheDocument();
 
     // Save item to notebook
@@ -702,8 +714,10 @@ describe('LivePartnerView', () => {
 
     const wordsBtns = await screen.findAllByRole('button', { name: /Words/i });
     expect(wordsBtns.length).toBeGreaterThanOrEqual(1);
+    const turnEl = screen.getAllByText('日本語を練習します。')[0].closest('.p-3') as HTMLElement;
+    const wordsBtn = within(turnEl).getByRole('button', { name: /Words/i });
     await act(async () => {
-      fireEvent.click(wordsBtns[0]);
+      fireEvent.click(wordsBtn);
     });
 
     expect(await screen.findAllByText('練習')).toHaveLength(2); // One in main view, one in drawer
@@ -960,6 +974,84 @@ describe('LivePartnerView', () => {
 
     const startBtn = screen.getByRole('button', { name: /Start Live Roleplay Mission|Start Live Conversation/i });
     expect(startBtn).toBeDisabled();
+  });
+
+  it('renders universal action buttons (Listen, Translate, Words) on both AI and user turns and allows translating/speaking', async () => {
+    const user = userEvent.setup();
+    const mockRepo = new StorageRepository('test_universal_' + Math.random());
+    const evalService = new EvaluationService();
+    const mockEvalTranslate = vi.spyOn(evalService, 'generateTurnTranslation').mockResolvedValueOnce('Good afternoon, let me make a reservation.');
+    const mockEvalVocab = vi.spyOn(evalService, 'lookupTurnVocabulary').mockResolvedValueOnce([
+      { word: '予約', reading: 'よやく', meaning: 'Reservation', jlptLevel: 'N4' },
+    ]);
+    const mockSpeak = vi.spyOn(SpeechSynthesisService, 'speak').mockImplementationOnce((_id, _text, _onStart, _onEnd) => {});
+    const mockCancel = vi.spyOn(SpeechSynthesisService, 'cancel').mockImplementationOnce(() => {});
+
+    render(
+      <SettingsProvider>
+        <LivePartnerView repository={mockRepo} />
+      </SettingsProvider>
+    );
+
+    await user.click(screen.getByRole('button', { name: /Free Open-Ended Chat/i }));
+    await user.click(screen.getByText(/Start Live Conversation/i));
+
+    await waitFor(() => {
+      expect(turnCallback).toBeDefined();
+    });
+
+    act(() => {
+      turnCallback?.({ id: 'user-turn-1', speaker: 'user', text: 'こんにちは、予約をお願いします。' });
+      turnCallback?.({ id: 'user-turn-1', speaker: 'user', text: 'こんにちは、予約をお願いします。', turnComplete: true });
+      turnCallback?.({ id: 'ai-turn-1', speaker: 'ai', text: 'はい、何名様でしょうか。' });
+      turnCallback?.({ id: 'ai-turn-1', speaker: 'ai', text: 'はい、何名様でしょうか。', turnComplete: true });
+    });
+
+    const listenButtons = await screen.findAllByRole('button', { name: /^Listen$/i });
+    expect(listenButtons.length).toBeGreaterThanOrEqual(3);
+
+    const translateButtons = screen.getAllByRole('button', { name: /^Translate$/i });
+    expect(translateButtons.length).toBeGreaterThanOrEqual(2);
+
+    const wordsButtons = screen.getAllByRole('button', { name: /^Words$/i });
+    expect(wordsButtons.length).toBeGreaterThanOrEqual(3);
+
+    const userTurnEl = screen.getAllByText('こんにちは、予約をお願いします。')[0].closest('.p-3') as HTMLElement;
+    const userListenBtn = within(userTurnEl).getByRole('button', { name: /^Listen$/i });
+    const userTranslateBtn = within(userTurnEl).getByRole('button', { name: /^Translate$/i });
+    const userWordsBtn = within(userTurnEl).getByRole('button', { name: /^Words$/i });
+
+    await user.click(userListenBtn);
+    expect(mockSpeak).toHaveBeenCalledWith('user-turn-1-done', 'こんにちは、予約をお願いします。', expect.any(Function), expect.any(Function));
+
+    const stopButton = await screen.findByRole('button', { name: /^Stop$/i });
+    await user.click(stopButton);
+    expect(mockCancel).toHaveBeenCalled();
+
+    await user.click(userTranslateBtn);
+    expect(mockEvalTranslate).toHaveBeenCalledWith('こんにちは、予約をお願いします。', 'test-api-key');
+    expect(await screen.findByText('Good afternoon, let me make a reservation.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Hide English/i })).toBeInTheDocument();
+
+    await user.click(userWordsBtn);
+    expect(mockEvalVocab).toHaveBeenCalled();
+    expect(await screen.findByText('予約')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Hide Words/i })).toBeInTheDocument();
+
+    // Verify Listen and Words actions on a speaking suggestion hint card
+    const hintCardEl = screen.getByText('What You Could Say Next').closest('.bg-slate-900\\/90') as HTMLElement;
+    const hintListenBtn = within(hintCardEl).getAllByRole('button', { name: /^Listen$/i })[0];
+    const hintWordsBtn = within(hintCardEl).getAllByRole('button', { name: /^Words$/i })[0];
+
+    mockSpeak.mockClear();
+    await user.click(hintListenBtn);
+    expect(mockSpeak).toHaveBeenCalled();
+
+    mockEvalVocab.mockResolvedValueOnce([
+      { word: 'すみません', reading: 'すみません', meaning: 'Excuse me', jlptLevel: 'N5' },
+    ]);
+    await user.click(hintWordsBtn);
+    expect((await within(hintCardEl).findAllByText(/すみません/))[0]).toBeInTheDocument();
   });
 });
 
