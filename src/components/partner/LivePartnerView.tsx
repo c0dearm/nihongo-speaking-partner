@@ -436,6 +436,10 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
   };
 
   const handleFetchManualSuggestions = async () => {
+    if (!isOnline) {
+      alert('You are offline. Generating speaking suggestions requires an active internet connection.');
+      return;
+    }
     if (mode === 'missions' && !selectedScenario) return;
     setIsLoadingSuggestions(true);
     try {
@@ -511,8 +515,9 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
         <button
           type="button"
           onClick={() => handleToggleTurnVocab(t.id, t.text)}
-          disabled={isLoading}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-indigo-950/60 hover:bg-indigo-900/80 text-indigo-300 border border-indigo-700/50 transition-colors"
+          disabled={isLoading || !isOnline}
+          title={!isOnline ? "Requires internet connection" : ""}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-indigo-950/60 hover:bg-indigo-900/80 disabled:opacity-50 disabled:cursor-not-allowed text-indigo-300 border border-indigo-700/50 transition-colors"
         >
           {isLoading ? (
             <span className="animate-pulse">Loading Words...</span>
@@ -777,7 +782,9 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
                 <button
                   type="button"
                   onClick={handleFetchManualSuggestions}
-                  className="px-4 py-2 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/40 text-indigo-200 text-xs font-semibold transition-all shadow-sm"
+                  disabled={!isOnline}
+                  title={!isOnline ? "Requires internet connection" : ""}
+                  className="px-4 py-2 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 disabled:opacity-50 disabled:cursor-not-allowed border border-indigo-500/40 text-indigo-200 text-xs font-semibold transition-all shadow-sm"
                 >
                   💡 Stuck? Click to Generate Response Suggestions
                 </button>
