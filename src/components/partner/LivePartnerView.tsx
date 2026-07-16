@@ -9,9 +9,10 @@ import { PersonaId, ConversationTurn, SessionReport, GrammarCorrection, Roleplay
 import { useSettings } from '../../context/SettingsContext';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { renderFurigana } from '../../utils/furigana';
+import { SpeechSynthesisService } from '../../services/audio/SpeechSynthesisService';
 import { WaveformVisualizer } from './WaveformVisualizer';
 import { CreateCustomScenarioModal } from './CreateCustomScenarioModal';
-import { Mic, PhoneOff, Sparkles, BookPlus, BookOpen, MessageSquare, X, Target, Plus, MessageCircle } from 'lucide-react';
+import { Mic, PhoneOff, Sparkles, BookPlus, BookOpen, MessageSquare, X, Target, Plus, MessageCircle, Volume2, Globe } from 'lucide-react';
 
 interface LivePartnerViewProps {
   repository: StorageRepository;
@@ -28,8 +29,6 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
     setAdaptationMode,
     suggestionsMode,
     setSuggestionsMode,
-    speakingSpeed,
-    setSpeakingSpeed,
     initiator,
     setInitiator,
   } = useSettings();
@@ -58,13 +57,6 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
     else setSuggestionsMode('auto');
   };
 
-  const toggleSpeakingSpeed = () => {
-    if (speakingSpeed === 'auto') setSpeakingSpeed('very_slow');
-    else if (speakingSpeed === 'very_slow') setSpeakingSpeed('slow');
-    else if (speakingSpeed === 'slow') setSpeakingSpeed('normal');
-    else setSpeakingSpeed('auto');
-  };
-
   const toggleInitiator = () => {
     setInitiator(initiator === 'ai_first' ? 'user_first' : 'ai_first');
   };
@@ -77,6 +69,10 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
   const [turnVocabMap, setTurnVocabMap] = useState<Record<string, TurnVocabularyItem[]>>({});
   const [loadingVocabIds, setLoadingVocabIds] = useState<Set<string>>(new Set());
   const [expandedVocabIds, setExpandedVocabIds] = useState<Set<string>>(new Set());
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const [turnTranslations, setTurnTranslations] = useState<Record<string, string>>({});
+  const [loadingTranslationIds, setLoadingTranslationIds] = useState<Set<string>>(new Set());
+  const [expandedTranslationIds, setExpandedTranslationIds] = useState<Set<string>>(new Set());
 
   const handleToggleTurnVocab = async (turnId: string, text: string) => {
     if (expandedVocabIds.has(turnId)) {
@@ -278,6 +274,11 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
     setTurnVocabMap({});
     setLoadingVocabIds(new Set());
     setExpandedVocabIds(new Set());
+    SpeechSynthesisService.cancel();
+    setPlayingId(null);
+    setTurnTranslations({});
+    setLoadingTranslationIds(new Set());
+    setExpandedTranslationIds(new Set());
     lastSuggestedTurnIdRef.current = null;
     if ((mode === 'free' || Boolean(selectedScenario)) && suggestionsMode === 'auto') {
       setIsLoadingSuggestions(true);
@@ -397,7 +398,6 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
         mode === 'missions' && selectedScenario ? selectedScenario : undefined,
         adaptationMode === 'auto' ? (currentProfile || undefined) : undefined,
         adaptationMode,
-        speakingSpeed,
         initiator
       );
       setIsConnected(true);
@@ -415,9 +415,14 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
   const endSession = async () => {
     clientRef.current?.disconnect();
     setIsConnected(false);
+    SpeechSynthesisService.cancel();
+    setPlayingId(null);
     setTurnVocabMap({});
     setLoadingVocabIds(new Set());
     setExpandedVocabIds(new Set());
+    setTurnTranslations({});
+    setLoadingTranslationIds(new Set());
+    setExpandedTranslationIds(new Set());
 
     if (transcript.length > 0) {
       const elapsed = Math.max(1, Math.round((Date.now() - sessionStartTimeRef.current) / 1000));
@@ -503,68 +508,141 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
     alert('Added to Notebook!');
   };
 
-  const renderTurnVocabularyUI = (t: { id: string; speaker: string; text: string }) => {
-    if (t.speaker !== 'ai' || !t.text.trim()) return null;
+  const handleToggleListen = (id: string, text: string) => {
+    if (playingId === id) {
+      SpeechSynthesisService.cancel();
+      setPlayingId(null);
+    } else {
+      setPlayingId(id);
+      SpeechSynthesisService.speak(id, text, () => setPlayingId(null), () => setPlayingId(null));
+    }
+  };
 
-    const isLoading = loadingVocabIds.has(t.id);
-    const isExpanded = expandedVocabIds.has(t.id);
-    const vocabList = turnVocabMap[t.id];
+  const handleToggleTranslate = async (id: string, text: string) => {
+    if (!isOnline) {
+      setStatusMessage('You are offline. Translation requires an active internet connection.');
+      return;
+    }
+    if (!apiKey) {
+      alert('Please configure your Gemini API Key in Settings first.');
+      return;
+    }
+
+    if (turnTranslations[id]) {
+      setExpandedTranslationIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+      return;
+    }
+
+    setLoadingTranslationIds((prev) => new Set(prev).add(id));
+    try {
+      const translation = await evalService.generateTurnTranslation(text, apiKey);
+      setTurnTranslations((prev) => ({ ...prev, [id]: translation }));
+      setExpandedTranslationIds((prev) => new Set(prev).add(id));
+    } catch (e) {
+      setStatusMessage('Failed to translate turn text.');
+    } finally {
+      setLoadingTranslationIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
+  };
+
+
+
+  const renderUniversalTurnActions = (t: { id: string; speaker: string; text: string }) => {
+    if (!t.text.trim()) return null;
+    const isPlaying = playingId === t.id;
+    const isLoadingTrans = loadingTranslationIds.has(t.id);
+    const isTransExpanded = expandedTranslationIds.has(t.id);
+    const isLoadingVocab = loadingVocabIds.has(t.id);
+    const isVocabExpanded = expandedVocabIds.has(t.id);
 
     return (
-      <div className="mt-2 pt-2 border-t border-slate-700/50">
-        <button
-          type="button"
-          onClick={() => handleToggleTurnVocab(t.id, t.text)}
-          disabled={isLoading || !isOnline}
-          title={!isOnline ? "Requires internet connection" : ""}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-indigo-950/60 hover:bg-indigo-900/80 disabled:opacity-50 disabled:cursor-not-allowed text-indigo-300 border border-indigo-700/50 transition-colors"
-        >
-          {isLoading ? (
-            <span className="animate-pulse">Loading Words...</span>
-          ) : (
-            <>
-              <BookOpen className="w-3.5 h-3.5" />
-              {isExpanded ? 'Hide Words' : 'Words'}
-            </>
-          )}
-        </button>
+      <div className="mt-2.5 pt-2 border-t border-slate-700/50 flex flex-col gap-2">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {/* Listen Button */}
+          <button
+            type="button"
+            onClick={() => handleToggleListen(t.id, t.text)}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+              isPlaying
+                ? 'bg-amber-950/80 border-amber-500/60 text-amber-300 animate-pulse'
+                : 'bg-slate-900/80 border-slate-700/80 text-slate-300 hover:text-slate-100 hover:bg-slate-800'
+            }`}
+          >
+            <Volume2 className="w-3.5 h-3.5" />
+            {isPlaying ? 'Stop' : 'Listen'}
+          </button>
 
-        {isExpanded && vocabList && (
-          <div className="mt-3 space-y-2">
-            <p className="text-[11px] font-semibold text-indigo-300 flex items-center gap-1">
-              <BookOpen className="w-3 h-3" /> Key Vocabulary in this Turn:
-            </p>
-            {vocabList.length === 0 ? (
-              <p className="text-xs text-slate-400 italic">No complex vocabulary detected.</p>
+          {/* Translate Button */}
+          <button
+            type="button"
+            onClick={() => handleToggleTranslate(t.id, t.text)}
+            disabled={isLoadingTrans || !isOnline}
+            title={!isOnline ? "Requires internet connection" : ""}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-900/80 border border-slate-700/80 hover:bg-slate-800 text-slate-300 hover:text-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <Globe className="w-3.5 h-3.5" />
+            {isLoadingTrans ? 'Translating...' : isTransExpanded ? 'Hide English' : 'Translate'}
+          </button>
+
+          {/* Words Button */}
+          <button
+            type="button"
+            onClick={() => handleToggleTurnVocab(t.id, t.text)}
+            disabled={isLoadingVocab || !isOnline}
+            title={!isOnline ? "Requires internet connection" : ""}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-indigo-950/60 hover:bg-indigo-900/80 disabled:opacity-50 disabled:cursor-not-allowed text-indigo-300 border border-indigo-700/50 transition-colors"
+          >
+            {isLoadingVocab ? (
+              <span className="animate-pulse">Loading Words...</span>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {vocabList.map((v, idx) => (
-                  <div
-                    key={idx}
-                    className="p-2.5 rounded-lg bg-slate-900/90 border border-slate-700/50 flex items-start justify-between gap-2"
-                  >
-                    <div>
-                      <div className="flex items-baseline gap-1.5 flex-wrap">
-                        <span className="text-sm font-bold text-slate-100">{v.word}</span>
-                        <span className="text-xs text-indigo-300">({v.reading})</span>
-                        <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-slate-800 text-slate-300 border border-slate-700">
-                          {v.jlptLevel}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-300 mt-1">{v.meaning}</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleSaveVocabToNotebook(v)}
-                      title="Save to Vocabulary Notebook"
-                      className="p-1.5 rounded-lg bg-indigo-900/40 hover:bg-indigo-800/60 text-indigo-300 border border-indigo-700/50 transition-colors shrink-0"
-                    >
-                      <BookPlus className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
+              <>
+                <BookOpen className="w-3.5 h-3.5" />
+                {isVocabExpanded ? 'Hide Words' : 'Words'}
+              </>
             )}
+          </button>
+        </div>
+
+        {/* Expanded Translation Panel */}
+        {isTransExpanded && turnTranslations[t.id] && (
+          <div className="p-2.5 rounded-lg bg-indigo-950/40 border border-indigo-500/30 text-xs text-indigo-200/95 italic leading-relaxed">
+            {turnTranslations[t.id]}
+          </div>
+        )}
+
+        {/* Expanded Turn Vocabulary Panel */}
+        {isVocabExpanded && turnVocabMap[t.id] && (
+          <div className="mt-1 space-y-2 pt-2 border-t border-slate-700/40">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-400">Key Vocabulary in this Turn:</div>
+            <ul className="space-y-2 max-h-48 overflow-y-auto pr-1">
+              {turnVocabMap[t.id].map((g, vIdx) => (
+                <li key={vIdx} className="p-2 rounded-lg bg-slate-950/80 border border-slate-800/80 flex flex-col gap-1">
+                  <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-slate-100">{renderFurigana(g.word + '[' + g.reading + ']', furiganaEnabled)}</span>
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-indigo-300 border border-slate-700">{g.jlptLevel}</span>
+                  </div>
+                  <p className="text-xs text-slate-300">{g.meaning}</p>
+                  <button
+                    type="button"
+                    onClick={() => handleSaveVocabToNotebook(g)}
+                    title="Save to Vocabulary Notebook"
+                    className="mt-1.5 self-start flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg bg-indigo-900/50 hover:bg-indigo-800/60 text-indigo-300 border border-indigo-700/50 transition-colors"
+                  >
+                    <BookPlus className="w-3 h-3" />
+                    Add to Notebook
+                  </button>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
       </div>
@@ -609,16 +687,6 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
               }`}
             >
               💡 Hints: {suggestionsMode.toUpperCase()}
-            </button>
-
-            <button
-              type="button"
-              disabled={isConnected}
-              title={isConnected ? "Speed change will apply on next connection" : ""}
-              onClick={toggleSpeakingSpeed}
-              className="flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold border transition-all w-full sm:w-auto bg-indigo-950/40 border-indigo-500/30 text-indigo-300 hover:bg-indigo-900/60 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              ⏱️ Pace: {speakingSpeed.toUpperCase()}
             </button>
 
             <button
@@ -797,30 +865,91 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
 
             {suggestions.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-48 overflow-y-auto pr-1">
-                {suggestions.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="p-3 rounded-xl bg-slate-950/80 border border-slate-800/80 hover:border-slate-700 transition-all space-y-1.5 text-left"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-medium text-slate-100">
-                        {renderFurigana(item.furigana || item.japanese, furiganaEnabled)}
-                      </span>
-                      {item.tier === 'easy' && (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-500/30 shrink-0">
-                          🌱 Bite-Sized (Easy)
+                {suggestions.map((item, idx) => {
+                  const hintKey = `hint-${idx}-${item.japanese.slice(0, 8)}`;
+                  return (
+                    <div
+                      key={idx}
+                      className="p-3 rounded-xl bg-slate-950/80 border border-slate-800/80 hover:border-slate-700 transition-all space-y-1.5 text-left"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-medium text-slate-100">
+                          {renderFurigana(item.furigana || item.japanese, furiganaEnabled)}
                         </span>
-                      )}
-                      {item.tier === 'natural' && (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-950 text-indigo-400 border border-indigo-500/30 shrink-0">
-                          💬 Natural
-                        </span>
+                        {item.tier === 'easy' && (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-500/30 shrink-0">
+                            🌱 Bite-Sized (Easy)
+                          </span>
+                        )}
+                        {item.tier === 'natural' && (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-950 text-indigo-400 border border-indigo-500/30 shrink-0">
+                            💬 Natural
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-400 italic">{item.english}</p>
+                      <p className="text-[11px] text-indigo-400/90 font-medium">💡 Tip: {item.tip}</p>
+
+                      <div className="flex items-center gap-1.5 pt-2 border-t border-slate-800/80 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleListen(hintKey, item.japanese)}
+                          className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium border transition-colors ${
+                            playingId === hintKey
+                              ? 'bg-amber-950/80 border-amber-500/60 text-amber-300 animate-pulse'
+                              : 'bg-slate-900 border-slate-700 text-slate-300 hover:text-slate-100'
+                          }`}
+                        >
+                          <Volume2 className="w-3 h-3" />
+                          {playingId === hintKey ? 'Stop' : 'Listen'}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleToggleTurnVocab(hintKey, item.japanese)}
+                          disabled={loadingVocabIds.has(hintKey) || !isOnline}
+                          title={!isOnline ? "Requires internet connection" : ""}
+                          className="flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-indigo-950/60 hover:bg-indigo-900/80 disabled:opacity-50 disabled:cursor-not-allowed text-indigo-300 border border-indigo-700/50 transition-colors"
+                        >
+                          {loadingVocabIds.has(hintKey) ? (
+                            <span className="animate-pulse">Loading Words...</span>
+                          ) : (
+                            <>
+                              <BookOpen className="w-3 h-3" />
+                              {expandedVocabIds.has(hintKey) ? 'Hide Words' : 'Words'}
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      {expandedVocabIds.has(hintKey) && turnVocabMap[hintKey] && (
+                        <div className="mt-2 space-y-2 pt-2 border-t border-slate-800/80">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-400">Hint Vocabulary:</div>
+                          <ul className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                            {turnVocabMap[hintKey].map((g, vIdx) => (
+                              <li key={vIdx} className="p-2 rounded bg-slate-950/90 border border-slate-800 flex flex-col gap-1">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-bold text-slate-100">{renderFurigana(g.word + '[' + g.reading + ']', furiganaEnabled)}</span>
+                                  <span className="px-1 py-0.2 rounded text-[9px] font-bold bg-slate-800 text-indigo-300 border border-slate-700">{g.jlptLevel}</span>
+                                </div>
+                                <p className="text-[11px] text-slate-300">{g.meaning}</p>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSaveVocabToNotebook(g)}
+                                  title="Save to Vocabulary Notebook"
+                                  className="mt-1 self-start flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded bg-indigo-900/50 hover:bg-indigo-800/60 text-indigo-300 border border-indigo-700/50 transition-colors"
+                                >
+                                  <BookPlus className="w-3 h-3" />
+                                  Add to Notebook
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
                       )}
                     </div>
-                    <p className="text-xs text-slate-400 italic">{item.english}</p>
-                    <p className="text-[11px] text-indigo-400/90 font-medium">💡 Tip: {item.tip}</p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -921,7 +1050,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
                 <div className="text-sm text-slate-100 leading-relaxed">
                   {renderFurigana(t.furiganaText || t.text, furiganaEnabled)}
                 </div>
-                {renderTurnVocabularyUI(t)}
+                {renderUniversalTurnActions(t)}
               </div>
             ))}
           </div>
@@ -1005,19 +1134,6 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
               </div>
 
               <div className="flex items-center justify-between pt-2 border-t border-slate-800/60">
-                <span className="text-xs text-slate-400">Speaking Pace</span>
-                <button
-                  type="button"
-                  disabled={isConnected}
-                  title={isConnected ? "Speed change will apply on next connection" : ""}
-                  onClick={toggleSpeakingSpeed}
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border transition-all bg-indigo-900/50 border-indigo-500 text-indigo-300 hover:bg-indigo-900/80 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  ⏱️ Pace: {speakingSpeed.toUpperCase()}
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between pt-2 border-t border-slate-800/60">
                 <span className="text-xs text-slate-400">Conversation Opening</span>
                 <button
                   type="button"
@@ -1065,7 +1181,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
                     <div className="text-sm text-slate-100 leading-relaxed">
                       {renderFurigana(t.furiganaText || t.text, furiganaEnabled)}
                     </div>
-                    {renderTurnVocabularyUI(t)}
+                    {renderUniversalTurnActions(t)}
                   </div>
                 ))
               )}

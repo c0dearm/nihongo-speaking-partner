@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { EvaluationService } from './EvaluationService';
 import { ConversationTurn } from '../../types';
 
@@ -668,7 +668,44 @@ describe('EvaluationService', () => {
       })
     );
   });
+
+  describe('generateTurnTranslation', () => {
+    const mockGenerateContent = vi.fn();
+
+    beforeEach(() => {
+      mockGenerateContent.mockReset();
+      vi.spyOn(EvaluationService.prototype as any, 'getClient').mockReturnValue({
+        models: {
+          generateContent: mockGenerateContent,
+        },
+      } as any);
+    });
+
+    it('generates English translation for Japanese utterance and caches results', async () => {
+      mockGenerateContent.mockResolvedValueOnce({
+        text: 'Hello, I would like to make a reservation.',
+      });
+
+      const service = new EvaluationService();
+      const res1 = await service.generateTurnTranslation('こんにちは、予約したいのですが。', 'test-api-key');
+      expect(res1).toBe('Hello, I would like to make a reservation.');
+      expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+      expect(mockGenerateContent.mock.calls[0][0].contents).toContain('こんにちは、予約したいのですが。');
+
+      // Second call should return cached result without hitting API
+      const res2 = await service.generateTurnTranslation('こんにちは、予約したいのですが。', 'test-api-key');
+      expect(res2).toBe('Hello, I would like to make a reservation.');
+      expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns empty string when text is empty', async () => {
+      const service = new EvaluationService();
+      const res = await service.generateTurnTranslation('   ', 'test-api-key');
+      expect(res).toBe('');
+    });
+  });
 });
+
 
 
 

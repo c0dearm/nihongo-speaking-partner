@@ -66,8 +66,6 @@ export interface SessionReport {
 
 export type SuggestionsMode = 'auto' | 'manual' | 'off';
 
-export type SpeakingSpeed = 'auto' | 'very_slow' | 'slow' | 'normal';
-
 export type Initiator = 'ai_first' | 'user_first';
 
 export interface SpeakingSuggestion {

@@ -1,5 +1,5 @@
 import { PERSONAS } from '../../data/personas';
-import { JLPTLevel, Persona, PersonaId, RoleplayScenario, ProficiencyProfile, AdaptationMode, SpeakingSpeed, Initiator } from '../../types';
+import { JLPTLevel, Persona, PersonaId, RoleplayScenario, ProficiencyProfile, AdaptationMode, Initiator } from '../../types';
 
 export class PersonaService {
   getAllPersonas(): Persona[] {
@@ -21,7 +21,6 @@ export class PersonaService {
     scenario?: RoleplayScenario,
     profile?: ProficiencyProfile,
     adaptationMode: AdaptationMode = 'auto',
-    speakingSpeed: SpeakingSpeed = 'auto',
     initiator: Initiator = 'ai_first'
   ): string {
     const persona = this.getPersona(personaId);
@@ -48,14 +47,6 @@ REAL-TIME ADAPTATION RULES:
 You are an intelligent, responsive Japanese speaking tutor and conversation partner. Actively monitor the user's speaking fluency, hesitations, and grammar accuracy turn-by-turn:
 - If the user hesitates, uses broken grammar, pauses frequently, or asks for clarification, immediately adapt by slowing your speaking pace, using simpler sentence structures, and naturally recasting their intended meaning without breaking character.
 - If the user speaks fluently with accurate complex grammar and native flow, dynamically elevate your grammatical register, introduce natural native idioms, and increase conversational depth.`;
-    }
-
-    if (speakingSpeed === 'very_slow' || (speakingSpeed === 'auto' && (levelToUse === 'N5' || levelToUse === 'N4'))) {
-      base += `\n\nSPEAKING PACE & CADENCE: You MUST speak VERY SLOWLY and clearly with distinct, gentle pauses between words and clauses (approx. 0.7x to 0.75x normal native speaking pace). Enunciate every syllable clearly so a beginner ear can catch each sound. Do not rush or slur words.`;
-    } else if (speakingSpeed === 'slow' || (speakingSpeed === 'auto' && levelToUse === 'N3')) {
-      base += `\n\nSPEAKING PACE & CADENCE: Speak at a moderate, steady, and clear pace with distinct pauses (approx. 0.85x to 0.9x normal native pace).`;
-    } else if (speakingSpeed === 'normal' || (speakingSpeed === 'auto' && (levelToUse === 'N2' || levelToUse === 'N1'))) {
-      base += `\n\nSPEAKING PACE & CADENCE: Speak at a natural, authentic native conversational speed.`;
     }
 
     if (initiator === 'ai_first') {

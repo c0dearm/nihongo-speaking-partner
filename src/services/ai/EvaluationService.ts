@@ -340,6 +340,47 @@ For each item, provide the exact Japanese word, its furigana reading, a concise 
     return promise;
   }
 
+  private static translationCache = new Map<string, string>();
+  private static inFlightTranslations = new Map<string, Promise<string>>();
+
+  async generateTurnTranslation(text: string, apiKey: string): Promise<string> {
+    const trimmed = text.trim();
+    if (!trimmed) return '';
+
+    if (EvaluationService.translationCache.has(trimmed)) {
+      return EvaluationService.translationCache.get(trimmed)!;
+    }
+
+    if (EvaluationService.inFlightTranslations.has(trimmed)) {
+      return EvaluationService.inFlightTranslations.get(trimmed)!;
+    }
+
+    const ai = this.getClient(apiKey);
+    const prompt = `Provide a concise, natural English translation for the following Japanese conversational utterance. Output ONLY the English translation text without quotes or introductory commentary.
+Japanese: "${trimmed}"`;
+
+    const promise = (async () => {
+      try {
+        const response = await ai.models.generateContent({
+          model: 'gemini-3.1-flash-lite-preview',
+          contents: prompt,
+        });
+        const rawText = typeof response.text === 'function' ? (response.text as () => string)() : response.text;
+        const result = rawText ? rawText.trim() : 'Translation unavailable.';
+        EvaluationService.translationCache.set(trimmed, result);
+        return result;
+      } catch (e) {
+        console.error('Failed to generate turn translation:', e);
+        throw e;
+      } finally {
+        EvaluationService.inFlightTranslations.delete(trimmed);
+      }
+    })();
+
+    EvaluationService.inFlightTranslations.set(trimmed, promise);
+    return promise;
+  }
+
   getKickstartSuggestions(): SpeakingSuggestion[] {
     return [
       {

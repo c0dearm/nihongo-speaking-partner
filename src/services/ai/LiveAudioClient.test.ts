@@ -55,7 +55,7 @@ describe('LiveAudioClient', () => {
 
   it('sends clientContent turn trigger upon setupComplete when initiator is ai_first', async () => {
     const client = new LiveAudioClient();
-    await client.connect('casual_friend', 'N4', 'test-key', undefined, undefined, 'auto', 'auto', 'ai_first');
+    await client.connect('casual_friend', 'N4', 'test-key', undefined, undefined, 'auto', 'ai_first');
 
     const wsInstance = MockWebSocket.instances[0];
     expect(wsInstance).toBeDefined();
@@ -78,7 +78,7 @@ describe('LiveAudioClient', () => {
 
   it('does NOT send clientContent turn trigger upon setupComplete when initiator is user_first', async () => {
     const client = new LiveAudioClient();
-    await client.connect('casual_friend', 'N4', 'test-key', undefined, undefined, 'auto', 'auto', 'user_first');
+    await client.connect('casual_friend', 'N4', 'test-key', undefined, undefined, 'auto', 'user_first');
 
     const wsInstance = MockWebSocket.instances[0];
     wsInstance.send.mockClear();
