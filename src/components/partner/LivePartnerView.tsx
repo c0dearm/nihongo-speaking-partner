@@ -40,6 +40,10 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
 
   const [suggestions, setSuggestions] = useState<SpeakingSuggestion[]>([]);
   const suggestionsRef = useRef<SpeakingSuggestion[]>([]);
+  const updateSuggestions = (s: SpeakingSuggestion[]) => {
+    suggestionsRef.current = s;
+    setSuggestions(s);
+  };
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
 
   useEffect(() => {
@@ -238,7 +242,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
       setIsLoadingSuggestions(true);
       evalService
         .generateSpeakingSuggestions(transcript, defaultLevel, apiKey, mode === 'missions' && selectedScenario ? selectedScenario : undefined, selectedPersona)
-        .then((s) => setSuggestions(s))
+        .then((s) => updateSuggestions(s))
         .finally(() => setIsLoadingSuggestions(false));
     }
   }, [suggestionsMode, isConnected, mode, selectedScenario]);
@@ -267,10 +271,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
     if ((mode === 'free' || Boolean(selectedScenario)) && suggestionsMode === 'auto') {
       setIsLoadingSuggestions(true);
       evalService.generateSpeakingSuggestions([], defaultLevel, apiKey, mode === 'missions' && selectedScenario ? selectedScenario : undefined, selectedPersona)
-        .then(s => {
-          suggestionsRef.current = s;
-          setSuggestions(s);
-        })
+        .then(s => updateSuggestions(s))
         .finally(() => setIsLoadingSuggestions(false));
     }
     sessionStartTimeRef.current = Date.now();
@@ -328,10 +329,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
               lastSuggestedTurnIdRef.current = baseId;
               setIsLoadingSuggestions(true);
               evalService.generateSpeakingSuggestions(updatedTranscript, defaultLevel, apiKey, mode === 'missions' && selectedScenario ? selectedScenario : undefined, selectedPersona)
-                .then(s => {
-                  suggestionsRef.current = s;
-                  setSuggestions(s);
-                })
+                .then(s => updateSuggestions(s))
                 .finally(() => setIsLoadingSuggestions(false));
             }
           }
@@ -431,7 +429,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
     setIsLoadingSuggestions(true);
     try {
       const s = await evalService.generateSpeakingSuggestions(transcript, defaultLevel, apiKey, mode === 'missions' && selectedScenario ? selectedScenario : undefined, selectedPersona);
-      setSuggestions(s);
+      updateSuggestions(s);
     } finally {
       setIsLoadingSuggestions(false);
     }

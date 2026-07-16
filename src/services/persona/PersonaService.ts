@@ -28,7 +28,7 @@ export class PersonaService {
 
     let base = `${persona.systemPrompt}\n\nTARGET JLPT LEVEL: ${targetLevel}`;
 
-    const levelToUse = profile?.estimatedLevel || targetLevel;
+    const levelToUse = adaptationMode === 'rigid' ? targetLevel : (profile?.estimatedLevel || targetLevel);
 
     if (adaptationMode === 'rigid') {
       base += `\nAdaptation Mode: RIGID BENCHMARK. Maintain rigid grammatical complexity, vocabulary register, and speaking speed appropriate for exact Japanese proficiency level ${targetLevel}. Do not simplify for the user even if they hesitate or make mistakes.`;
