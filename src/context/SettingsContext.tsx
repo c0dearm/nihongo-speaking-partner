@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
-import { JLPTLevel, AdaptationMode, SuggestionsMode } from '../types';
+import { JLPTLevel, AdaptationMode, SuggestionsMode, SpeakingSpeed, Initiator } from '../types';
 
 interface SettingsContextType {
   apiKey: string;
@@ -12,6 +12,10 @@ interface SettingsContextType {
   setAdaptationMode: (mode: AdaptationMode) => void;
   suggestionsMode: SuggestionsMode;
   setSuggestionsMode: (mode: SuggestionsMode) => void;
+  speakingSpeed: SpeakingSpeed;
+  setSpeakingSpeed: (speed: SpeakingSpeed) => void;
+  initiator: Initiator;
+  setInitiator: (initiator: Initiator) => void;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -35,6 +39,14 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const [suggestionsMode, setSuggestionsModeState] = useState<SuggestionsMode>(() => {
     return (localStorage.getItem('nihongo_suggestions_mode') as SuggestionsMode) || 'auto';
+  });
+
+  const [speakingSpeed, setSpeakingSpeedState] = useState<SpeakingSpeed>(() => {
+    return (localStorage.getItem('nihongo_speaking_speed') as SpeakingSpeed) || 'auto';
+  });
+
+  const [initiator, setInitiatorState] = useState<Initiator>(() => {
+    return (localStorage.getItem('nihongo_initiator') as Initiator) || 'ai_first';
   });
 
   const setApiKey = (key: string) => {
@@ -62,6 +74,16 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     localStorage.setItem('nihongo_suggestions_mode', mode);
   };
 
+  const setSpeakingSpeed = (speed: SpeakingSpeed) => {
+    setSpeakingSpeedState(speed);
+    localStorage.setItem('nihongo_speaking_speed', speed);
+  };
+
+  const setInitiator = (init: Initiator) => {
+    setInitiatorState(init);
+    localStorage.setItem('nihongo_initiator', init);
+  };
+
   return (
     <SettingsContext.Provider
       value={{
@@ -75,6 +97,10 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setAdaptationMode,
         suggestionsMode,
         setSuggestionsMode,
+        speakingSpeed,
+        setSpeakingSpeed,
+        initiator,
+        setInitiator,
       }}
     >
       {children}

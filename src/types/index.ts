@@ -66,11 +66,16 @@ export interface SessionReport {
 
 export type SuggestionsMode = 'auto' | 'manual' | 'off';
 
+export type SpeakingSpeed = 'auto' | 'very_slow' | 'slow' | 'normal';
+
+export type Initiator = 'ai_first' | 'user_first';
+
 export interface SpeakingSuggestion {
   japanese: string;
   furigana: string;
   english: string;
   tip: string;
+  tier?: 'easy' | 'natural';
 }
 
 export interface RoleplayScenario {
