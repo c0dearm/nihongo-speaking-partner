@@ -347,12 +347,14 @@ For each item, provide the exact Japanese word, its furigana reading, a concise 
         furigana: 'すみません、お話[はな]ししたいことがあるのですが。',
         english: 'Excuse me, I have something I would like to talk to you about.',
         tip: 'A polite, versatile conversation starter to initiate your roleplay mission.',
+        tier: 'easy',
       },
       {
         japanese: 'こんにちは。よろしくお願いします。',
         furigana: 'こんにちは。よろしくお願[ねが]いします。',
         english: 'Hello. Thank you in advance / nice to meet you.',
         tip: 'A standard Japanese greeting to open the interaction.',
+        tier: 'natural',
       },
     ];
   }
@@ -375,31 +377,35 @@ For each item, provide the exact Japanese word, its furigana reading, a concise 
       if (!scenario) {
         return [
           {
+            japanese: '最近、何に興味がありますか？',
+            furigana: '最近[さいきん]、何[なに]に興味[きょうみ]がありますか？',
+            english: 'What are you interested in recently?',
+            tip: 'A bite-sized question to steer the casual conversation.',
+            tier: 'easy',
+          },
+          {
             japanese: '最近、どんな映画や音楽に興味がありますか？',
             furigana: '最近[さいきん]、どんな映画[えいが]や音楽[おんがく]に興味[きょうみ]がありますか？',
             english: 'What kind of movies or music are you interested in recently?',
-            tip: 'A natural open-ended question to steer the casual conversation.',
-          },
-          {
-            japanese: '週末はいつもどのように過ごしていますか？',
-            furigana: '週末[しゅうまつ]はいつもどのように過[す]ごしていますか？',
-            english: 'How do you usually spend your weekends?',
-            tip: 'Ask about daily routines or hobbies to keep the conversation flowing smoothly.',
+            tip: 'A natural open-ended question to continue casual flow.',
+            tier: 'natural',
           },
         ];
       }
       return [
         {
-          japanese: 'すみません、土曜日の夜７時に５人で予約したいのですが。',
-          furigana: 'すみません、土曜日[どようび]の夜[よる]７時[しちじ]に５人[ごにん]で予約[よやく]したいのですが。',
-          english: 'Excuse me, I would like to make a reservation for 5 people on Saturday evening at 7.',
-          tip: 'A polite, natural sentence using ~たいのですが to clearly state your reservation request.',
+          japanese: 'すみません、予約したいのですが。',
+          furigana: 'すみません、予約[よやく]したいのですが。',
+          english: 'Excuse me, I would like to make a reservation.',
+          tip: 'Bite-sized opening stating only your immediate intent.',
+          tier: 'easy',
         },
         {
-          japanese: '土曜日の午後７時は空いていますか？田中と申します。',
-          furigana: '土曜日[どようび]の午後[ごご]７時[しちじ]は空[あ]いていますか？田中[たなか]と申[もう]します。',
-          english: 'Do you have availability for Saturday at 7 PM? My name is Tanaka.',
-          tip: 'Ask about table availability directly while politely stating your last name with ~と申します.',
+          japanese: '土曜日の夜７時に５人で予約したいのですが。',
+          furigana: '土曜日[どようび]の夜[よる]７時[しちじ]に５人[ごにん]で予約[よやく]したいのですが。',
+          english: 'I would like to make a reservation for 5 people on Saturday evening at 7.',
+          tip: 'A complete natural sentence stating all reservation details.',
+          tier: 'natural',
         },
       ];
     }
@@ -438,7 +444,10 @@ Target Japanese Level: ${targetLevel}
 Recent Conversation History:
 ${recentTurns || 'Conversation is just starting. The user needs to initiate the interaction or make their first statement.'}
 
-Provide exactly 2 to 3 natural, highly authentic Japanese response options that the user could speak next to progress toward their secret goal. The suggestions should match ${targetLevel} complexity. Include full bracketed or ruby furigana (e.g. 予約[よやく]), clean English translations, and a concise strategic tip.`;
+Provide exactly 2 to 3 natural, highly authentic Japanese response options that the user could speak next to progress toward their secret goal.
+CRITICAL FOR BEGINNERS (N5/N4): Do NOT attempt to fulfill multiple roleplay mission goals or multi-clause thoughts in a single suggestion. Break the conversation down into BITE-SIZED, single-step turns. Each suggested phrase MUST accomplish exactly ONE small conversational step (e.g. Turn 1: get attention / state intent; Turn 2: give day/time; Turn 3: give party size).
+STRICT LEVEL BOUNDS: Strictly constrain all vocabulary, kanji, and grammar patterns to ${targetLevel}. For N5, every suggestion must be a single clause under 7 words. For N4, under 10 words.
+TIERED SUGGESTIONS: Return exactly 2 to 3 response options where at least one has "tier": "easy" (the shortest, simplest possible single-clause sentence to keep moving forward) and at least one has "tier": "natural" (a slightly more natural or complete native phrasing for when the learner feels confident). Include full bracketed or ruby furigana (e.g. 予約[よやく]), clean English translations, and a concise strategic tip.`;
       } else {
         const persona = this.personaService.getPersona(personaId);
         prompt = `You are an expert Japanese speaking coach assisting a student participating in a free open-ended Japanese conversation.
@@ -449,7 +458,10 @@ Target Japanese Level: ${targetLevel}
 Recent Conversation History:
 ${recentTurns || 'Conversation is just starting. The user needs to initiate the interaction or make their first statement.'}
 
-Provide exactly 2 to 3 natural, highly authentic Japanese response options that the user could speak next to smoothly continue or steer the conversational flow. The suggestions should match ${targetLevel} complexity. Include full bracketed or ruby furigana (e.g. 映画[えいが]), clean English translations, and a concise strategic tip.`;
+Provide exactly 2 to 3 natural, highly authentic Japanese response options that the user could speak next to smoothly continue or steer the conversational flow.
+CRITICAL FOR BEGINNERS (N5/N4): Break options down into BITE-SIZED, simple conversational turns.
+STRICT LEVEL BOUNDS: Strictly constrain all vocabulary, kanji, and grammar patterns to ${targetLevel}. For N5, every suggestion must be a single clause under 7 words. For N4, under 10 words.
+TIERED SUGGESTIONS: Return exactly 2 to 3 response options where at least one has "tier": "easy" (the shortest, simplest possible single-clause sentence) and at least one has "tier": "natural" (a slightly more natural or complete native phrasing). Include full bracketed or ruby furigana (e.g. 映画[えいが]), clean English translations, and a concise strategic tip.`;
       }
 
       const responseSchema = {
@@ -462,6 +474,7 @@ Provide exactly 2 to 3 natural, highly authentic Japanese response options that 
             furigana: { type: Type.STRING, description: 'Japanese response with full bracketed furigana above kanji, e.g. 予約[よやく]したいのですが' },
             english: { type: Type.STRING, description: 'English translation of the suggested phrase' },
             tip: { type: Type.STRING, description: 'Strategic tip explaining how this phrase helps accomplish the goal or conversation flow' },
+            tier: { type: Type.STRING, description: 'Complexity tier: either "easy" or "natural"' },
           },
           required: ['japanese', 'furigana', 'english', 'tip'],
         },

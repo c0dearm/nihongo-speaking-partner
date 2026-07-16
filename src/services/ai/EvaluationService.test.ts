@@ -288,8 +288,10 @@ describe('EvaluationService', () => {
 
     expect(Array.isArray(suggestions)).toBe(true);
     expect(suggestions).toHaveLength(2);
-    expect(suggestions[0].japanese).toBe('最近、どんな映画や音楽に興味がありますか？');
-    expect(suggestions[1].japanese).toBe('週末はいつもどのように過ごしていますか？');
+    expect(suggestions[0].japanese).toBe('最近、何に興味がありますか？');
+    expect(suggestions[0].tier).toBe('easy');
+    expect(suggestions[1].japanese).toBe('最近、どんな映画や音楽に興味がありますか？');
+    expect(suggestions[1].tier).toBe('natural');
   });
 
   it('generates roleplay speaking suggestions with furigana using gemini-3.1-flash-lite-preview and strict JSON schema', async () => {
@@ -596,6 +598,75 @@ describe('EvaluationService', () => {
       { word: '単語', reading: 'たんご', meaning: 'word', jlptLevel: 'N2' },
     ]);
     expect(mockGenerateContent).toHaveBeenCalledTimes(2);
+  });
+
+  it('kickstart and mock suggestions include tier labels', () => {
+    const service = new EvaluationService();
+    const kickstart = service.getKickstartSuggestions();
+    expect(kickstart[0].tier).toBe('easy');
+    expect(kickstart[1].tier).toBe('natural');
+  });
+
+  it('generateSpeakingSuggestionsWithClient asks for bite-sized single-step options and tiered schemas', async () => {
+    const service = new EvaluationService();
+    const mockSuggestionsJson = JSON.stringify([
+      {
+        japanese: '予約したいのですが。',
+        furigana: '予約[よやく]したいのですが。',
+        english: 'I would like to make a reservation.',
+        tip: 'Single-step reservation opening.',
+        tier: 'easy',
+      },
+      {
+        japanese: '土曜日の夜７時に予約したいのですが。',
+        furigana: '土曜日[どようび]の夜[よる]７時[しちじ]に予約[よやく]したいのですが。',
+        english: 'I would like to make a reservation for Saturday at 7 PM.',
+        tip: 'Natural reservation phrase.',
+        tier: 'natural',
+      },
+    ]);
+
+    const mockGenerateContent = vi.fn().mockResolvedValue({
+      text: () => mockSuggestionsJson,
+    });
+
+    const mockAiClient = {
+      models: {
+        generateContent: mockGenerateContent,
+      },
+    };
+
+    const result = await service.generateSpeakingSuggestionsWithClient(
+      mockAiClient as any,
+      [{ id: 't1', speaker: 'ai', text: 'いらっしゃいませ！', timestamp: 1000 }],
+      'N5',
+      {
+        id: 'izakaya_reserve',
+        title: 'Reserving an Izakaya Table',
+        category: 'dining',
+        goalDescription: 'Reserve for 5 on Saturday at 7 PM.',
+        userRole: 'Customer',
+        aiRole: 'Host',
+      }
+    );
+
+    expect(result).toHaveLength(2);
+    expect(result[0].tier).toBe('easy');
+    expect(result[1].tier).toBe('natural');
+    expect(mockGenerateContent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contents: expect.stringContaining('CRITICAL FOR BEGINNERS (N5/N4): Do NOT attempt to fulfill multiple roleplay mission goals'),
+        config: expect.objectContaining({
+          responseSchema: expect.objectContaining({
+            items: expect.objectContaining({
+              properties: expect.objectContaining({
+                tier: expect.any(Object),
+              }),
+            }),
+          }),
+        }),
+      })
+    );
   });
 });
 
