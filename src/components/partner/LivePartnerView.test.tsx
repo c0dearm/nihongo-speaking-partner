@@ -959,7 +959,26 @@ describe('LivePartnerView', () => {
     // Should not call generateSpeakingSuggestions because user spoke recently (< 1500ms)
     expect(mockGenerateSpeakingSuggestions).not.toHaveBeenCalled();
   });
+
+  it('displays offline status banner and disables live session buttons when offline', () => {
+    // Simulate going offline
+    render(
+      <SettingsProvider>
+        <LivePartnerView repository={repo} />
+      </SettingsProvider>
+    );
+
+    act(() => {
+      window.dispatchEvent(new Event('offline'));
+    });
+
+    expect(screen.getByText(/📡 Offline Mode: Voice conversations and AI evaluations require an active internet connection/i)).toBeInTheDocument();
+
+    const startBtn = screen.getByRole('button', { name: /Start Live Roleplay Mission|Start Live Conversation/i });
+    expect(startBtn).toBeDisabled();
+  });
 });
+
 
 
 

@@ -7,6 +7,7 @@ import { RoleplayScenarioService } from '../../services/scenarios/RoleplayScenar
 import { ProficiencyProfileService } from '../../services/ai/ProficiencyProfileService';
 import { PersonaId, ConversationTurn, SessionReport, GrammarCorrection, RoleplayScenario, ProficiencyProfile, SpeakingSuggestion, TurnVocabularyItem } from '../../types';
 import { useSettings } from '../../context/SettingsContext';
+import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { renderFurigana } from '../../utils/furigana';
 import { WaveformVisualizer } from './WaveformVisualizer';
 import { CreateCustomScenarioModal } from './CreateCustomScenarioModal';
@@ -32,6 +33,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
     initiator,
     setInitiator,
   } = useSettings();
+  const isOnline = useOnlineStatus();
   const [mode, setMode] = useState<'free' | 'missions'>('missions');
   const [selectedPersona, setSelectedPersona] = useState<PersonaId>('casual_friend');
   const [scenarios, setScenarios] = useState<RoleplayScenario[]>([]);
@@ -88,6 +90,11 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
 
     if (turnVocabMap[turnId]) {
       setExpandedVocabIds((prev) => new Set(prev).add(turnId));
+      return;
+    }
+
+    if (!isOnline) {
+      setStatusMessage('You are offline. Vocabulary lookup requires an active internet connection.');
       return;
     }
 
@@ -248,6 +255,10 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
   }, [suggestionsMode, isConnected, mode, selectedScenario]);
 
   const startSession = async () => {
+    if (!isOnline) {
+      alert('You are offline. Live voice conversations require an active internet connection.');
+      return;
+    }
     if (!apiKey) {
       alert('Please configure your Gemini API Key in Settings first.');
       return;
@@ -436,6 +447,10 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
   };
 
   const handleGenerateReport = async () => {
+    if (!isOnline) {
+      alert('You are offline. Generating session feedback reports requires an active internet connection.');
+      return;
+    }
     if (transcript.length === 0 || !apiKey) return;
     setGeneratingReport(true);
     try {
@@ -734,7 +749,14 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
 
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 flex flex-col items-center justify-center space-y-6">
         <div className="w-full max-w-lg px-4 py-2 rounded-lg bg-slate-950/80 border border-slate-800 text-center text-xs font-mono text-slate-300">
-          Status: <span className="text-indigo-400">{statusMessage}</span>
+          Status:{' '}
+          {!isOnline ? (
+            <span className="text-amber-400 font-semibold">
+              📡 Offline Mode: Voice conversations and AI evaluations require an active internet connection.
+            </span>
+          ) : (
+            <span className="text-indigo-400">{statusMessage}</span>
+          )}
         </div>
 
         {/* Dynamic Speaking Suggestions Panel */}
@@ -829,8 +851,10 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
         ) : (
           <button
             type="button"
+            disabled={!isOnline}
+            title={!isOnline ? "Requires internet connection" : ""}
             onClick={startSession}
-            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold shadow-lg shadow-indigo-600/30 transition-all"
+            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold shadow-lg shadow-indigo-600/30 transition-all"
           >
             <Mic className="w-5 h-5" />
             {mode === 'missions' ? 'Start Live Roleplay Mission' : 'Start Live Conversation'}
@@ -865,8 +889,9 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
             <button
               type="button"
               onClick={handleGenerateReport}
-              disabled={generatingReport}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium"
+              disabled={generatingReport || !isOnline}
+              title={!isOnline ? "Requires internet connection" : ""}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium"
             >
               <Sparkles className="w-4 h-4" />
               {generatingReport ? 'Evaluating Session...' : 'Generate Feedback Report'}
