@@ -1,7 +1,7 @@
 import { AudioCapture } from '../audio/AudioCapture';
 import { AudioPlayer } from '../audio/AudioPlayer';
 import { PersonaService } from '../persona/PersonaService';
-import { JLPTLevel, PersonaId, RoleplayScenario, ProficiencyProfile, AdaptationMode } from '../../types';
+import { JLPTLevel, PersonaId, RoleplayScenario, ProficiencyProfile, AdaptationMode, SpeakingSpeed, Initiator } from '../../types';
 
 export interface TurnEvent {
   id?: string;
@@ -43,8 +43,8 @@ export class LiveAudioClient {
     scenario?: RoleplayScenario,
     profile?: ProficiencyProfile,
     adaptationMode: AdaptationMode = 'auto',
-    speakingSpeed: 'auto' | 'very_slow' | 'slow' | 'normal' = 'auto',
-    initiator: 'ai_first' | 'user_first' = 'ai_first'
+    speakingSpeed: SpeakingSpeed = 'auto',
+    initiator: Initiator = 'ai_first'
   ): Promise<void> {
     if (this.isConnected) {
       this.disconnect();

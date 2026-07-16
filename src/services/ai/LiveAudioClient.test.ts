@@ -15,7 +15,16 @@ class MockWebSocket {
   static CLOSED = 3;
   static instances: MockWebSocket[] = [];
   url: string;
-  onopen: (() => void) | null = null;
+  private _onopen: (() => void) | null = null;
+  get onopen(): (() => void) | null {
+    return this._onopen;
+  }
+  set onopen(cb: (() => void) | null) {
+    this._onopen = cb;
+    if (cb) {
+      cb();
+    }
+  }
   onmessage: ((e: { data: any }) => void) | null = null;
   onerror: ((e: any) => void) | null = null;
   onclose: ((e: any) => void) | null = null;
@@ -28,9 +37,6 @@ class MockWebSocket {
   constructor(url: string) {
     this.url = url;
     MockWebSocket.instances.push(this);
-    setTimeout(() => {
-      if (this.onopen) this.onopen();
-    }, 5);
   }
 }
 
