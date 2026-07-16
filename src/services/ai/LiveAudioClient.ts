@@ -42,7 +42,9 @@ export class LiveAudioClient {
     apiKey: string,
     scenario?: RoleplayScenario,
     profile?: ProficiencyProfile,
-    adaptationMode: AdaptationMode = 'auto'
+    adaptationMode: AdaptationMode = 'auto',
+    speakingSpeed: 'auto' | 'very_slow' | 'slow' | 'normal' = 'auto',
+    initiator: 'ai_first' | 'user_first' = 'ai_first'
   ): Promise<void> {
     if (this.isConnected) {
       this.disconnect();
@@ -54,7 +56,9 @@ export class LiveAudioClient {
       undefined,
       scenario,
       profile,
-      adaptationMode
+      adaptationMode,
+      speakingSpeed,
+      initiator
     );
 
     const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${apiKey}`;
@@ -117,6 +121,25 @@ export class LiveAudioClient {
 
       if (data.setupComplete) {
         console.log('[LiveAudioClient] Setup successfully completed with Gemini server.');
+        if (initiator === 'ai_first' && this.ws && this.ws.readyState === WebSocket.OPEN) {
+          console.log('[LiveAudioClient] Sending initial clientContent turn trigger for AI initiation...');
+          const initMessage = {
+            clientContent: {
+              turns: [
+                {
+                  role: 'user',
+                  parts: [
+                    {
+                      text: '（接続が完了しました。あなたの役柄とシチュエーションに合わせて、あなたから先に話しかけて会話を開始してください！）',
+                    },
+                  ],
+                },
+              ],
+              turnComplete: true,
+            },
+          };
+          this.ws.send(JSON.stringify(initMessage));
+        }
       }
 
       if (data.error || data.error_details) {
