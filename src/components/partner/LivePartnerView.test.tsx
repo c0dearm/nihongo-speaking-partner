@@ -255,6 +255,8 @@ describe('LivePartnerView', () => {
           goalDescription: expect.stringContaining('Call a busy izakaya to reserve a table for 4 people'),
         }),
         expect.any(Object),
+        expect.any(String),
+        expect.any(String),
         expect.any(String)
       );
     });
@@ -283,7 +285,9 @@ describe('LivePartnerView', () => {
           estimatedLevel: expect.any(String),
           recentStruggles: expect.any(Array),
         }),
-        'auto'
+        'auto',
+        'auto',
+        'ai_first'
       );
     });
 
@@ -798,6 +802,162 @@ describe('LivePartnerView', () => {
     await waitFor(() => {
       expect(onStatsUpdated).toHaveBeenCalled();
     });
+  });
+
+  it('renders and toggles Speaking Speed and Initiator selectors in studio and drawer, and passes them to client.connect', async () => {
+    render(
+      <SettingsProvider>
+        <LivePartnerView repository={repo} />
+      </SettingsProvider>
+    );
+
+    const paceBtn = screen.getByText(/⏱️ Pace:/i);
+    expect(paceBtn).toBeInTheDocument();
+    fireEvent.click(paceBtn);
+    expect(screen.getByText(/⏱️ Pace: VERY_SLOW/i)).toBeInTheDocument();
+
+    const initBtn = screen.getByText(/🗣️ Opens:/i);
+    expect(initBtn).toBeInTheDocument();
+    fireEvent.click(initBtn);
+    expect(screen.getByText(/🗣️ Opens: You First/i)).toBeInTheDocument();
+
+    const izakayaCards = await screen.findAllByText(/Izakaya Table Reservation/i);
+    fireEvent.click(izakayaCards[0]);
+
+    const startBtn = screen.getByText(/Start Live Roleplay Mission/i);
+    fireEvent.click(startBtn);
+
+    await waitFor(() => {
+      expect(mockConnect).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(String),
+        expect.any(String),
+        expect.any(Object),
+        expect.any(Object),
+        'auto',
+        'very_slow',
+        'user_first'
+      );
+    });
+
+    // Verify in drawer when connected
+    fireEvent.click(screen.getByText(/Transcript Drawer/i));
+    expect(await screen.findByText(/Live Transcript Drawer/i)).toBeInTheDocument();
+    const allPaceBtns = screen.getAllByText(/⏱️ Pace: VERY_SLOW/i);
+    expect(allPaceBtns.length).toBeGreaterThanOrEqual(2);
+    allPaceBtns.forEach((btnEl) => {
+      const btn = btnEl.closest('button')!;
+      expect(btn).toBeDisabled();
+      expect(btn).toHaveAttribute('title', 'Speed change will apply on next connection');
+    });
+
+    const allInitBtns = screen.getAllByText(/🗣️ Opens: You First/i);
+    expect(allInitBtns.length).toBeGreaterThanOrEqual(2);
+    allInitBtns.forEach((btnEl) => {
+      const btn = btnEl.closest('button')!;
+      expect(btn).toBeDisabled();
+      expect(btn).toHaveAttribute('title', 'Initiator change will apply on next connection');
+    });
+  });
+
+  it('renders tier badges on suggestions when present', async () => {
+    mockGenerateSpeakingSuggestions.mockResolvedValueOnce([
+      {
+        japanese: 'はい、そうです。',
+        furigana: 'はい、そうです。',
+        english: 'Yes, that is right.',
+        tip: 'Short response',
+        tier: 'easy',
+      },
+      {
+        japanese: 'いいえ、実は少し違いますね。',
+        furigana: 'いいえ、実[じつ]は少[すこ]し違[ちが]いますね。',
+        english: 'No, actually it is slightly different.',
+        tip: 'Natural response',
+        tier: 'natural',
+      },
+    ]);
+
+    render(
+      <SettingsProvider>
+        <LivePartnerView repository={repo} />
+      </SettingsProvider>
+    );
+
+    const izakayaCards = await screen.findAllByText(/Izakaya Table Reservation/i);
+    fireEvent.click(izakayaCards[0]);
+
+    fireEvent.click(screen.getByText(/Start Live Roleplay Mission/i));
+
+    await waitFor(() => {
+      expect(turnCallback).toBeDefined();
+    });
+
+    act(() => {
+      turnCallback?.({ id: 'turn-tiered-1', speaker: 'ai', text: 'ご予約ですか？' });
+      turnCallback?.({ id: 'turn-tiered-1', speaker: 'ai', text: 'ご予約ですか？', turnComplete: true });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('🌱 Bite-Sized (Easy)')).toBeInTheDocument();
+      expect(screen.getByText('💬 Natural')).toBeInTheDocument();
+    });
+  });
+
+  it('implements Smart Turn-Locking guard in onTurnEvent so hints do not refresh prematurely', async () => {
+    mockGenerateSpeakingSuggestions.mockClear();
+    render(
+      <SettingsProvider>
+        <LivePartnerView repository={repo} />
+      </SettingsProvider>
+    );
+
+    const izakayaCards = await screen.findAllByText(/Izakaya Table Reservation/i);
+    fireEvent.click(izakayaCards[0]);
+
+    fireEvent.click(screen.getByText(/Start Live Roleplay Mission/i));
+
+    await waitFor(() => {
+      expect(turnCallback).toBeDefined();
+    });
+
+    mockGenerateSpeakingSuggestions.mockClear();
+
+    // 1. Initial AI turn (> 5 chars) generates suggestions
+    act(() => {
+      turnCallback?.({ id: 'turn-smart-1', speaker: 'ai', text: '何名様でしょうか？どうぞ！' });
+      turnCallback?.({ id: 'turn-smart-1', speaker: 'ai', text: '何名様でしょうか？どうぞ！', turnComplete: true });
+    });
+
+    await waitFor(() => {
+      expect(mockGenerateSpeakingSuggestions).toHaveBeenCalledTimes(1);
+    });
+
+    mockGenerateSpeakingSuggestions.mockClear();
+
+    // 2. Next turn is a brief filler from AI (< 5 chars, e.g. "はい。") when suggestions already exist -> should NOT refresh hints
+    act(() => {
+      turnCallback?.({ id: 'turn-smart-2', speaker: 'ai', text: 'はい。' });
+      turnCallback?.({ id: 'turn-smart-2', speaker: 'ai', text: 'はい。', turnComplete: true });
+    });
+
+    // Should not call generateSpeakingSuggestions because it's a brief filler and suggestions > 0
+    expect(mockGenerateSpeakingSuggestions).not.toHaveBeenCalled();
+
+    // 3. User speaks right now, setting lastUserTurnTimestampRef to Date.now()
+    act(() => {
+      turnCallback?.({ id: 'turn-user-1', speaker: 'user', text: 'ええと...' });
+      turnCallback?.({ id: 'turn-user-1', speaker: 'user', text: 'ええと...', turnComplete: true });
+    });
+
+    // Immediately after (< 1500ms), AI finishes a longer turn while user just hesitated/spoke
+    act(() => {
+      turnCallback?.({ id: 'turn-smart-3', speaker: 'ai', text: '少しお待ちくださいませ。' });
+      turnCallback?.({ id: 'turn-smart-3', speaker: 'ai', text: '少しお待ちくださいませ。', turnComplete: true });
+    });
+
+    // Should not call generateSpeakingSuggestions because user spoke recently (< 1500ms)
+    expect(mockGenerateSpeakingSuggestions).not.toHaveBeenCalled();
   });
 });
 

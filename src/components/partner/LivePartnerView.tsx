@@ -18,7 +18,20 @@ interface LivePartnerViewProps {
 }
 
 export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, onStatsUpdated }) => {
-  const { apiKey, defaultLevel, furiganaEnabled, setFuriganaEnabled, adaptationMode, setAdaptationMode, suggestionsMode, setSuggestionsMode } = useSettings();
+  const {
+    apiKey,
+    defaultLevel,
+    furiganaEnabled,
+    setFuriganaEnabled,
+    adaptationMode,
+    setAdaptationMode,
+    suggestionsMode,
+    setSuggestionsMode,
+    speakingSpeed,
+    setSpeakingSpeed,
+    initiator,
+    setInitiator,
+  } = useSettings();
   const [mode, setMode] = useState<'free' | 'missions'>('missions');
   const [selectedPersona, setSelectedPersona] = useState<PersonaId>('casual_friend');
   const [scenarios, setScenarios] = useState<RoleplayScenario[]>([]);
@@ -26,12 +39,28 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   const [suggestions, setSuggestions] = useState<SpeakingSuggestion[]>([]);
+  const suggestionsRef = useRef<SpeakingSuggestion[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+
+  useEffect(() => {
+    suggestionsRef.current = suggestions;
+  }, [suggestions]);
 
   const toggleSuggestionsMode = () => {
     if (suggestionsMode === 'auto') setSuggestionsMode('manual');
     else if (suggestionsMode === 'manual') setSuggestionsMode('off');
     else setSuggestionsMode('auto');
+  };
+
+  const toggleSpeakingSpeed = () => {
+    if (speakingSpeed === 'auto') setSpeakingSpeed('very_slow');
+    else if (speakingSpeed === 'very_slow') setSpeakingSpeed('slow');
+    else if (speakingSpeed === 'slow') setSpeakingSpeed('normal');
+    else setSpeakingSpeed('auto');
+  };
+
+  const toggleInitiator = () => {
+    setInitiator(initiator === 'ai_first' ? 'user_first' : 'ai_first');
   };
 
   const [isConnected, setIsConnected] = useState(false);
@@ -113,6 +142,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
   const currentSessionIdRef = useRef<string>('sess-' + Date.now());
   const annotatingIdsRef = useRef<Set<string>>(new Set());
   const lastSuggestedTurnIdRef = useRef<string | null>(null);
+  const lastUserTurnTimestampRef = useRef<number>(0);
 
   useEffect(() => {
     clientRef.current = new LiveAudioClient();
@@ -229,6 +259,7 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
     setTranscript([]);
     setReport(null);
     setSuggestions([]);
+    suggestionsRef.current = [];
     setTurnVocabMap({});
     setLoadingVocabIds(new Set());
     setExpandedVocabIds(new Set());
@@ -236,7 +267,10 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
     if ((mode === 'free' || Boolean(selectedScenario)) && suggestionsMode === 'auto') {
       setIsLoadingSuggestions(true);
       evalService.generateSpeakingSuggestions([], defaultLevel, apiKey, mode === 'missions' && selectedScenario ? selectedScenario : undefined, selectedPersona)
-        .then(s => setSuggestions(s))
+        .then(s => {
+          suggestionsRef.current = s;
+          setSuggestions(s);
+        })
         .finally(() => setIsLoadingSuggestions(false));
     }
     sessionStartTimeRef.current = Date.now();
@@ -244,6 +278,10 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
     setStatusMessage('Connecting to Gemini Live API WebSocket...');
 
     client.onTurnEvent((turn) => {
+      if (turn.speaker === 'user' && (turn.text.trim() || turn.interrupted)) {
+        lastUserTurnTimestampRef.current = Date.now();
+      }
+
       if (turn.text.startsWith('⚠️')) {
         setStatusMessage(turn.text);
         return;
@@ -251,6 +289,9 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
         setStatusMessage('AI interrupted by user speaking.');
         return;
       } else if (turn.turnComplete) {
+        if (turn.speaker === 'user' && turn.text.trim()) {
+          lastUserTurnTimestampRef.current = Date.now();
+        }
         // Mark the latest turn as complete and fetch its furigana readings in the background only when furigana is enabled
         setTranscript((prev) => {
           if (prev.length === 0) return prev;
@@ -269,11 +310,28 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
           const baseId = last.id.replace('-done', '');
           const updatedTranscript = [...prev.slice(0, -1), { ...last, id: baseId + '-done' }];
           if ((mode === 'free' || Boolean(selectedScenario)) && turn.speaker === 'ai' && suggestionsMode === 'auto') {
-            if (!lastSuggestedTurnIdRef.current || lastSuggestedTurnIdRef.current !== baseId) {
+            // Smart Turn-Locking guard:
+            // 1. Do not refresh if AI turn was interrupted by user
+            // 2. Do not refresh if AI text is a brief filler (< 5 Japanese characters) AND suggestions already exist
+            // 3. Do not refresh if user spoke recently (< 1500ms ago)
+            const isBriefFiller = last.text.trim().length < 5;
+            const timeSinceUserSpoke = Date.now() - lastUserTurnTimestampRef.current;
+            const userSpokeRecently = timeSinceUserSpoke < 1500;
+
+            const shouldTriggerHintsRefresh =
+              !turn.interrupted &&
+              (!isBriefFiller || (suggestions.length === 0 && suggestionsRef.current.length === 0)) &&
+              !userSpokeRecently &&
+              (!lastSuggestedTurnIdRef.current || lastSuggestedTurnIdRef.current !== baseId);
+
+            if (shouldTriggerHintsRefresh) {
               lastSuggestedTurnIdRef.current = baseId;
               setIsLoadingSuggestions(true);
               evalService.generateSpeakingSuggestions(updatedTranscript, defaultLevel, apiKey, mode === 'missions' && selectedScenario ? selectedScenario : undefined, selectedPersona)
-                .then(s => setSuggestions(s))
+                .then(s => {
+                  suggestionsRef.current = s;
+                  setSuggestions(s);
+                })
                 .finally(() => setIsLoadingSuggestions(false));
             }
           }
@@ -282,6 +340,10 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
         return;
       } else if (turn.text) {
         setStatusMessage(`${turn.speaker === 'user' ? 'You' : 'AI'} speaking: "${turn.text.slice(0, 40)}..."`);
+      }
+
+      if (turn.speaker === 'user' && turn.text.trim()) {
+        lastUserTurnTimestampRef.current = Date.now();
       }
 
       if (!turn.text.trim()) return;
@@ -325,7 +387,9 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
         apiKey,
         mode === 'missions' && selectedScenario ? selectedScenario : undefined,
         adaptationMode === 'auto' ? (currentProfile || undefined) : undefined,
-        adaptationMode
+        adaptationMode,
+        speakingSpeed,
+        initiator
       );
       setIsConnected(true);
       setStatusMessage(
@@ -528,6 +592,26 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
             >
               💡 Hints: {suggestionsMode.toUpperCase()}
             </button>
+
+            <button
+              type="button"
+              disabled={isConnected}
+              title={isConnected ? "Speed change will apply on next connection" : ""}
+              onClick={toggleSpeakingSpeed}
+              className="flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold border transition-all w-full sm:w-auto bg-indigo-950/40 border-indigo-500/30 text-indigo-300 hover:bg-indigo-900/60 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              ⏱️ Pace: {speakingSpeed.toUpperCase()}
+            </button>
+
+            <button
+              type="button"
+              disabled={isConnected}
+              title={isConnected ? "Initiator change will apply on next connection" : ""}
+              onClick={toggleInitiator}
+              className="flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold border transition-all w-full sm:w-auto bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              🗣️ Opens: {initiator === 'ai_first' ? 'AI First' : 'You First'}
+            </button>
           </div>
 
           <div className="flex flex-col sm:flex-row bg-slate-900 border border-slate-800 rounded-xl p-1 gap-1 w-full sm:w-auto">
@@ -691,9 +775,21 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
                     key={idx}
                     className="p-3 rounded-xl bg-slate-950/80 border border-slate-800/80 hover:border-slate-700 transition-all space-y-1.5 text-left"
                   >
-                    <p className="text-sm font-medium text-slate-100">
-                      {renderFurigana(item.furigana || item.japanese, furiganaEnabled)}
-                    </p>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium text-slate-100">
+                        {renderFurigana(item.furigana || item.japanese, furiganaEnabled)}
+                      </span>
+                      {item.tier === 'easy' && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-500/30 shrink-0">
+                          🌱 Bite-Sized (Easy)
+                        </span>
+                      )}
+                      {item.tier === 'natural' && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-950 text-indigo-400 border border-indigo-500/30 shrink-0">
+                          💬 Natural
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-slate-400 italic">{item.english}</p>
                     <p className="text-[11px] text-indigo-400/90 font-medium">💡 Tip: {item.tip}</p>
                   </div>
@@ -875,6 +971,32 @@ export const LivePartnerView: React.FC<LivePartnerViewProps> = ({ repository, on
                   }`}
                 >
                   💡 Hints: {suggestionsMode.toUpperCase()}
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-slate-800/60">
+                <span className="text-xs text-slate-400">Speaking Pace</span>
+                <button
+                  type="button"
+                  disabled={isConnected}
+                  title={isConnected ? "Speed change will apply on next connection" : ""}
+                  onClick={toggleSpeakingSpeed}
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border transition-all bg-indigo-900/50 border-indigo-500 text-indigo-300 hover:bg-indigo-900/80 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  ⏱️ Pace: {speakingSpeed.toUpperCase()}
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-slate-800/60">
+                <span className="text-xs text-slate-400">Conversation Opening</span>
+                <button
+                  type="button"
+                  disabled={isConnected}
+                  title={isConnected ? "Initiator change will apply on next connection" : ""}
+                  onClick={toggleInitiator}
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border transition-all bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  🗣️ Opens: {initiator === 'ai_first' ? 'AI First' : 'You First'}
                 </button>
               </div>
 
